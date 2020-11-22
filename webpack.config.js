@@ -2,7 +2,7 @@ const path = require('path');
 
 
 const config = {
-  entry: './src/index.ts',
+  entry: './src/index.tsx',
   module: {
     rules: [
       {
@@ -13,6 +13,17 @@ const config = {
       {
         test: /\.css$/i,
         use: ['style-loader', 'css-loader'],
+      },
+      {
+        test: /\.(png|jpe?g|gif|svg)$/i,
+        use: [
+          {
+            loader: 'file-loader',
+            options: {
+              esModule: false,
+            },
+          },
+        ],
       },
     ],
   },
@@ -36,10 +47,10 @@ const config = {
 module.exports = (argv, env) => {
   if (env.mode === 'development') {
     const HtmlWebpackPlugin = require('html-webpack-plugin');
-    config.entry = [config.entry, './examples/examples.ts'];
-    config.plugins.push(
+    config.entry = [config.entry, './examples/examples.tsx'];
+    config.plugins = [
       new HtmlWebpackPlugin({template: './examples/index.html'})
-    );
+    ];
   }
   if (env.mode) {
     config.mode = env.mode;

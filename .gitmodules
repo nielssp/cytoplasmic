@@ -1,0 +1,3 @@
+[submodule "examples/classic-stylesheets"]
+	path = examples/classic-stylesheets
+	url = https://github.com/nielssp/classic-stylesheets.git
