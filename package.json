@@ -1,0 +1,26 @@
+{
+  "name": "cstk",
+  "version": "0.1.0",
+  "description": "The Classic Stylesheets Toolkit",
+  "author": "Niels Poulsen",
+  "license": "MIT",
+  "main": "dist/cstk.js",
+  "files": [
+    "dist/cstk.js"
+  ],
+  "scripts": {
+    "build": "webpack --mode=production",
+    "dev": "webpack-dev-server --mode=development",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "css-loader": "^3.5.3",
+    "html-webpack-plugin": "^4.3.0",
+    "style-loader": "^1.2.1",
+    "ts-loader": "^7.0.3",
+    "typescript": "^3.8.3",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.11.0"
+  }
+}
