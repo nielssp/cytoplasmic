@@ -432,33 +432,21 @@ export class StackRow extends StackLayout {
 
 export class Form extends Component<HTMLFormElement> {
     readonly submit = new DomEmitter(this.elem, 'submit');
-    onSubmit: Observer<Event> = () => {};
 
     constructor() {
         super(document.createElement('form'));
         this.submit.observe(e => e.preventDefault());
     }
-
-    init() {
-        super.init();
-        this.submit.observe(this.onSubmit);
-    }
 }
 
 export class Button extends Component<HTMLButtonElement> {
     readonly click = new DomEmitter(this.elem, 'click');
-    onClick: Observer<MouseEvent> = () => {};
 
     constructor(text: string, ... classList: string[]) {
         super(document.createElement('button'));
         this.elem.textContent = text;
         classList.forEach(c => this.classList.add(c));
         this.type = 'button';
-    }
-
-    init() {
-        super.init();
-        this.click.observe(this.onClick);
     }
 
     get type(): string {
@@ -484,7 +472,6 @@ export class Radio extends Component<HTMLInputElement> {
     readonly disabled = this.domProperty('disabled');
     readonly checked = this.domProperty('checked');
     readonly change = new DomEmitter(this.elem, 'change');
-    onChange: Observer<Event> = () => {};
 
     constructor() {
         super(document.createElement('input'));
@@ -496,7 +483,6 @@ export class Radio extends Component<HTMLInputElement> {
 
     init() {
         super.init();
-        this.change.observe(this.onChange);
         if (this.elem.form) {
             for (let element of Array.from(this.elem.form.elements)) {
                 if (element instanceof HTMLInputElement && element.type === 'radio') {
@@ -523,7 +509,6 @@ export class TextInput extends Component<HTMLInputElement> {
     private pendingFocus: boolean = false;
     readonly value = new Property('', value => this.elem.value = value);
     change = new Emitter<string>();
-    onChange: Observer<string> = () => {};
 
     constructor() {
         super(document.createElement('input'));
@@ -549,7 +534,6 @@ export class TextInput extends Component<HTMLInputElement> {
 
     init() {
         super.init();
-        this.change.observe(this.onChange);
     }
 
     get disabled(): boolean {
