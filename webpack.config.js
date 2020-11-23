@@ -32,8 +32,8 @@ const config = {
     extensions: ['.ts', '.tsx', '.js', '.json']
   },
   output: {
-    path: path.resolve(__dirname, '_bundles'),
-    filename: '[name].js',
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'index.js',
     libraryTarget: 'umd',
     library: 'CSTK',
     umdNamedDefine: true

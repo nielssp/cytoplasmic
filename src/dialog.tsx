@@ -1,4 +1,5 @@
-import { Panel, StackColumn, Label, elem, StackRow, Button } from "./component";
+import { elem, Button } from "./component";
+import { Panel, StackColumn, Label, StackRow } from "./layout";
 import { Property } from "./emitter";
 
 let dragTarget: Dialog|null = null;

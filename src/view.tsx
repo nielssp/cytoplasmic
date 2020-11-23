@@ -1,5 +1,5 @@
 import { Emitter } from "./emitter";
-import { Panel } from "./component";
+import { Panel } from "./layout";
 import { Injector, InjectableClass, InjectorCache } from "./injector";
 
 export abstract class View extends Panel {

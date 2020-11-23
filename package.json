@@ -4,9 +4,10 @@
   "description": "The Classic Stylesheets Toolkit",
   "author": "Niels Poulsen",
   "license": "MIT",
-  "main": "dist/cstk.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
-    "dist/cstk.js"
+    "dist"
   ],
   "scripts": {
     "build": "webpack --mode=production",

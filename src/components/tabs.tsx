@@ -1,5 +1,6 @@
-import { Component, Panel, Button } from "../component";
+import { Component, Button } from "../component";
 import { Emitter } from "../emitter";
+import { Panel } from "../layout";
 
 export class TabPage<T extends Component<any>> extends Panel {
     button = new Button(this._name);

@@ -1,4 +1,4 @@
-import { Panel, StackRow, StackColumn } from "../component";
+import { Panel, StackRow } from "../layout";
 import { DomEmitter, Observer } from "../emitter";
 
 export class List<T> extends Panel {
