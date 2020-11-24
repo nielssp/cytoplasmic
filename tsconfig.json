@@ -15,6 +15,7 @@
     "jsxFactory": "elem"
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "examples/*"
   ]
 }

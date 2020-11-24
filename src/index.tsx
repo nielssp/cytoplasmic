@@ -4,3 +4,5 @@ export * from './layout';
 export * from './emitter';
 export * from './i18n';
 export * from './injector';
+
+import './jsx';
