@@ -90,6 +90,33 @@ export class ResizeSignal implements Signal {
     }
 }
 
+
+export function DomProperty() {
+  return (target: any, key: string) => {
+    Object.defineProperty(target, key, {
+      get() {
+        return this.elem[key];
+      },
+      set(value) {
+        return this.elem[key] = value;
+      }
+    });
+  };
+}
+
+export function StyleProperty() {
+  return (target: any, key: string) => {
+    Object.defineProperty(target, key, {
+      get() {
+        return this.elem.style[key];
+      },
+      set(value) {
+        return this.elem.style[key] = value;
+      }
+    });
+  };
+}
+
 export class Component<T extends HTMLElement> {
     private __bogusProps: ComponentProps<this> = {};
     readonly class = new Property<string[]|Record<string, boolean>>([], classes => {
@@ -108,11 +135,7 @@ export class Component<T extends HTMLElement> {
     children: Component<HTMLElement>[] = [];
     initialized: boolean = false;
 
-    constructor(public elem: T) {
-    }
-
-    domProperty<TProp extends keyof T>(prop: TProp): Property<T[TProp]> {
-        return new Property(this.elem[prop], value => this.elem[prop] = value);
+    constructor(public elem: T, public inner: HTMLElement = elem) {
     }
 
     get id(): string {
@@ -142,13 +165,17 @@ export class Component<T extends HTMLElement> {
         this.children.forEach(c => c.receiveSignal(signal));
     }
 
-    append<C extends HTMLElement>(child: Component<C>|C): Component<C> {
-        if (!(child instanceof Component)) {
-            let component = new Component(child);
-            component.elem = child;
-            child = component;
+    append<C extends HTMLElement>(child: Component<C>): void {
+        this.inner.appendChild(child.elem);
+        this.children.push(child as any);
+        if (this.initialized) {
+            child.init();
         }
-        this.elem.appendChild(child.elem);
+    }
+
+    appendHtml<C extends HTMLElement>(elem: C): Component<C> {
+        const child = new Component(elem);
+        this.inner.appendChild(child.elem);
         this.children.push(child as any);
         if (this.initialized) {
             child.init();
@@ -167,7 +194,7 @@ export class Component<T extends HTMLElement> {
             if (this.initialized) {
                 this.children[index].dispose();
             }
-            this.elem.removeChild(this.children[index].elem);
+            this.inner.removeChild(this.children[index].elem);
             this.children.splice(index, 1);
         }
     }
@@ -175,7 +202,7 @@ export class Component<T extends HTMLElement> {
     clear() {
         this.children.forEach(c => c.dispose());
         this.children = [];
-        this.elem.innerHTML = '';
+        this.inner.innerHTML = '';
     }
 
     get visible(): boolean {
@@ -340,16 +367,15 @@ export class Button extends Component<HTMLButtonElement> {
 }
 
 export class Radio extends Component<HTMLInputElement> {
-    readonly name = this.domProperty('name');
-    readonly value = this.domProperty('value');
-    readonly disabled = this.domProperty('disabled');
-    readonly checked = this.domProperty('checked');
-    readonly change = new DomEmitter(this.elem, 'change');
+    @DomProperty() name?: string;
+    @DomProperty() value?: string;
+    @DomProperty() disabled?: boolean;
+    readonly checked = new Property(this.elem.checked, c => this.elem.checked = c);
 
     constructor() {
         super(document.createElement('input'));
         this.elem.type = 'radio';
-        this.change.observe(() => {
+        this.elem.addEventListener('change', () => {
             this.checked.value = this.elem.checked;
         });
     }
@@ -381,7 +407,6 @@ export class TextInput extends Component<HTMLInputElement> {
     private interval: number|null = null;
     private pendingFocus: boolean = false;
     readonly value = new Property('', value => this.elem.value = value);
-    change = new Emitter<string>();
 
     constructor() {
         super(document.createElement('input'));
@@ -392,7 +417,6 @@ export class TextInput extends Component<HTMLInputElement> {
                 this.interval = window.setInterval(() => {
                     if (this.value.value !== this.elem.value) {
                         this.value.value = this.elem.value;
-                        this.change.emit(this.elem.value);
                     }
                 }, 33);
             }
@@ -474,7 +498,7 @@ export interface Option<T> {
 
 export class Select<T> extends Component<HTMLSelectElement> {
     private optionMap: Record<string, T> = {};
-    readonly disabled = this.domProperty('disabled');
+    @DomProperty() disabled?: boolean;
     readonly value = new Property<T|null>(null, value => this.setValue(value));
 
     constructor() {

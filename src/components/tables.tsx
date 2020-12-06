@@ -272,8 +272,10 @@ export class DataTable<T> extends Component<HTMLTableElement> {
             const content = display(item);
             if (typeof content === 'string') {
                 cell.elem.textContent = content;
-            } else {
+            } else if (content instanceof Component) {
                 cell.append(content);
+            } else {
+                cell.appendHtml(content);
             }
         }
         return row;
@@ -304,8 +306,10 @@ export class RecordTable<K extends string|number|symbol, T> extends DataTable<T>
                 const content = this.columns[i](item);
                 if (typeof content === 'string') {
                     cell.elem.textContent = content;
-                } else {
+                } else if (content instanceof Component) {
                     cell.append(content);
+                } else {
+                    cell.appendHtml(content);
                 }
             }
         } else {

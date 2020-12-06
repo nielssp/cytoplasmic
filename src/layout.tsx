@@ -29,31 +29,8 @@ export interface StackChildOptions {
 }
 
 export abstract class StackLayout extends Panel {
-    constructor(options: StackOptions = {}, ... classList: string[]) {
+    constructor(... classList: string[]) {
         super(... classList);
-        if (options.alignItems) {
-            this.style.alignItems = options.alignItems;
-        }
-        if (options.justifyContent) {
-            this.style.justifyContent = options.justifyContent;
-        }
-    }
-
-    append<C extends HTMLElement>(child: Component<C>|C, options: StackChildOptions = {}): Component<C> {
-        const component = super.append(child);
-        if (options.alignSelf) {
-            component.style.alignSelf = options.alignSelf;
-        }
-        if (options.justifySelf) {
-            component.style.justifySelf = options.justifySelf;
-        }
-        if (options.flexGrow) {
-            component.style.flexGrow = options.flexGrow;
-        }
-        if (options.flexShrink) {
-            component.style.flexShrink = options.flexShrink;
-        }
-        return component;
     }
 
     get alignItems(): string {
@@ -86,16 +63,16 @@ export abstract class StackLayout extends Panel {
 }
 
 export class StackColumn extends StackLayout {
-    constructor(options: StackOptions = {}, ... classList: string[]) {
-        super(options, 'stack-column', ... classList);
+    constructor(... classList: string[]) {
+        super('stack-column', ... classList);
     }
 }
 
 export class StackRow extends StackLayout {
     private _minWidth: number = 0;
 
-    constructor(options: StackOptions = {}, ... classList: string[]) {
-        super(options, 'stack-row', ... classList);
+    constructor(... classList: string[]) {
+        super('stack-row', ... classList);
     }
 
     init() {
