@@ -1,4 +1,4 @@
-import { Component, Signal, ResizeSignal } from "./component";
+import { Component } from "./component";
 
 export class Panel extends Component<HTMLDivElement> {
     constructor(... classList: string[]) {
@@ -73,6 +73,7 @@ export class StackRow extends StackLayout {
 
     constructor(... classList: string[]) {
         super('stack-row', ... classList);
+        this.observeWindow('resize', () => this.updateSize());
     }
 
     init() {
@@ -89,17 +90,14 @@ export class StackRow extends StackLayout {
     }
 
     updateSize() {
+        if (!this.minWidth) {
+            return;
+        }
         const rect = this.elem.getBoundingClientRect();
         if (rect.width < this.minWidth) {
             this.classList.add('wrap');
         } else {
             this.classList.remove('wrap');
-        }
-    }
-
-    receiveSignal(signal: Signal) {
-        if (this.minWidth > 0 && signal instanceof ResizeSignal) {
-            this.updateSize();
         }
     }
 }

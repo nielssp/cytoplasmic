@@ -82,15 +82,6 @@ export function elem<C extends Component<HTMLElement>>(name: string|(new () => C
     }
 }
 
-export interface Signal {
-}
-
-export class ResizeSignal implements Signal {
-    constructor(public event: UIEvent) {
-    }
-}
-
-
 export function DomProperty() {
   return (target: any, key: string) => {
     Object.defineProperty(target, key, {
@@ -132,8 +123,10 @@ export class Component<T extends HTMLElement> {
             }
         }
     });
-    children: Component<HTMLElement>[] = [];
+    children: Component<any>[] = [];
     initialized: boolean = false;
+    protected initActions: (() => void)[] = [];
+    protected destroyActions: (() => void)[] = [];
 
     constructor(public elem: T, public inner: HTMLElement = elem) {
     }
@@ -153,16 +146,47 @@ export class Component<T extends HTMLElement> {
         if (this.initialized) {
             return;
         }
+        this.initActions.forEach(f => f());
         this.children.forEach(c => c.init());
         this.initialized = true;
     }
 
     dispose() {
+        if (!this.initialized) {
+            return;
+        }
+        this.destroyActions.forEach(f => f());
+        this.destroyActions = [];
         this.children.forEach(c => c.dispose());
+        this.initialized = false;
     }
 
-    receiveSignal(signal: Signal) {
-        this.children.forEach(c => c.receiveSignal(signal));
+    observeWindow<K extends keyof WindowEventMap>(type: K, listener: (ev: WindowEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void {
+        const action = () => {
+            this.elem.ownerDocument.defaultView?.addEventListener(type, listener, options);
+            this.destroyActions.push(() => {
+                this.elem.ownerDocument.defaultView?.removeEventListener(type, listener, options);
+            });
+        };
+        if (this.initialized) {
+            action();
+        } else {
+            this.initActions.push(action);
+        }
+    }
+
+    observeDocument<K extends keyof DocumentEventMap>(type: K, listener: (ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void {
+        const action = () => {
+            this.elem.ownerDocument.addEventListener(type, listener, options);
+            this.destroyActions.push(() => {
+                this.elem.ownerDocument.removeEventListener(type, listener, options);
+            });
+        };
+        if (this.initialized) {
+            action();
+        } else {
+            this.initActions.push(action);
+        }
     }
 
     append<C extends HTMLElement>(child: Component<C>): void {
@@ -173,14 +197,8 @@ export class Component<T extends HTMLElement> {
         }
     }
 
-    appendHtml<C extends HTMLElement>(elem: C): Component<C> {
-        const child = new Component(elem);
-        this.inner.appendChild(child.elem);
-        this.children.push(child as any);
-        if (this.initialized) {
-            child.init();
-        }
-        return child;
+    appendHtml<TNode extends Node>(elem: TNode): void {
+        this.inner.appendChild(elem);
     }
 
     remove<C extends HTMLElement>(child: Component<C>|HTMLElement) {
