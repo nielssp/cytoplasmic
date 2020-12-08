@@ -92,7 +92,6 @@ export class MenuBar extends Menu {
 
     constructor() {
         super();
-        this.classList.add('menu-bar');
         this.elem.setAttribute('role', 'menubar');
     }
 
