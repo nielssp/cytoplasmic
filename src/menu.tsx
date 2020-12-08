@@ -1,6 +1,22 @@
 import { Component } from "./component";
 import { Property, DomEmitter, Emitter } from "./emitter";
 
+// TODO: hm...
+let floatingMenu: Menu|undefined;
+document.addEventListener('click', () => {
+    if (floatingMenu) {
+        document.body.removeChild(floatingMenu.elem);
+        floatingMenu = undefined;
+    }
+});
+document.addEventListener('contextmenu', e => {
+    if (floatingMenu) {
+        document.body.removeChild(floatingMenu.elem);
+        e.preventDefault();
+        floatingMenu = undefined;
+    }
+});
+
 export class Menu extends Component<HTMLUListElement> {
     readonly label = new Property('');
     items: Item[] = [];
@@ -22,6 +38,35 @@ export class Menu extends Component<HTMLUListElement> {
         } else {
             super.append(child);
         }
+    }
+
+    openAtCursor(e: MouseEvent) {
+        if (floatingMenu) {
+            document.body.removeChild(floatingMenu.elem);
+            floatingMenu = undefined;
+        }
+        if (this.elem.parentElement) {
+            return;
+        }
+        floatingMenu = this;
+        document.body.appendChild(this.elem);
+        this.elem.style.position = 'absolute';
+        const rect = this.elem.getBoundingClientRect();
+        let x = e.pageX, y = e.pageY;
+        x += 1;
+        if (rect.width + x > document.body.clientWidth) {
+            if (x - rect.width > 1) {
+                x -= rect.width - 1;
+            } else {
+                x = 0;
+            }
+        }
+        y += 1;
+        if (rect.height + y > document.body.clientHeight) {
+            y = document.body.clientHeight - rect.height;
+        }
+        this.elem.style.left = x + 'px';
+        this.elem.style.top = y + 'px';
     }
 }
 

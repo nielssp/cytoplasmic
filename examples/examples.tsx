@@ -14,6 +14,11 @@ const n = new Property(0);
 const a = new Property('2');
 const b = new Property('3');
 const c = a.flatMap(a => b.map(b => parseInt(a) + parseInt(b)));
+const contextMenu: Menu = <Menu>
+    <Item label='Cu&t'/>
+    <Item label='&Copy'/>
+    <Item label='&Paste' disabled/>
+</Menu>;
 const example: Panel = <StackColumn spacing padding>
     <MenuBar hotkeyEmitter={documentHotkeyEmitter}>
         <Menu label='&File'>
@@ -44,6 +49,9 @@ const example: Panel = <StackColumn spacing padding>
         =
         {c}
     </StackRow>
+    <Panel contextMenu={contextMenu}>
+        Right click
+    </Panel>
 </StackColumn>;
 
 document.getElementById('example1')?.appendChild(example.elem);

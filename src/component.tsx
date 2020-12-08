@@ -1,4 +1,5 @@
 import { Emitter, DomEmitter, Property, PropertyValue, EmitterObserver } from "./emitter";
+import { Menu } from "./menu";
 
 export type Side = 'top' | 'right' | 'bottom' | 'left' | 'horizontal' | 'vertical';
 
@@ -127,6 +128,8 @@ export class Component<T extends HTMLElement> {
     initialized: boolean = false;
     protected initActions: (() => void)[] = [];
     protected destroyActions: (() => void)[] = [];
+    private _contextMenu?: Menu;
+    private contextMenuListenerAdded = false;
 
     constructor(public elem: T, public inner: HTMLElement = elem) {
     }
@@ -346,6 +349,24 @@ export class Component<T extends HTMLElement> {
             }
         }
     }
+
+    get contextMenu(): Menu|undefined {
+        return this._contextMenu;
+    }
+
+    set contextMenu(contextMenu: Menu|undefined) {
+        this._contextMenu = contextMenu;
+        if (this._contextMenu && !this.contextMenuListenerAdded) {
+            this.elem.addEventListener('contextmenu', e => {
+                if (!this._contextMenu) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                this._contextMenu.openAtCursor(e);
+            });
+        }
+    }
 }
 
 export class Form extends Component<HTMLFormElement> {
@@ -380,7 +401,7 @@ export class Button extends Component<HTMLButtonElement> {
     }
 
     set disabled(disabled: boolean) {
-        this.elem.disabled = disabled;;
+        this.elem.disabled = disabled;
     }
 }
 
@@ -422,7 +443,7 @@ export class RadioGroup {
 }
 
 export class TextInput extends Component<HTMLInputElement> {
-    private interval: number|null = null;
+    private interval?: number;
     private pendingFocus: boolean = false;
     readonly value = new Property('', value => this.elem.value = value);
 
@@ -431,7 +452,7 @@ export class TextInput extends Component<HTMLInputElement> {
         this.elem.type = 'text';
         this.elem.addEventListener('focus', () => {
             this.value.value = this.elem.value;
-            if (this.interval === null) {
+            if (this.interval == undefined) {
                 this.interval = window.setInterval(() => {
                     if (this.value.value !== this.elem.value) {
                         this.value.value = this.elem.value;
@@ -440,9 +461,10 @@ export class TextInput extends Component<HTMLInputElement> {
             }
         });
         this.elem.addEventListener('blur', () => {
-            if (this.interval !== null) {
+            if (this.interval != undefined) {
                 clearInterval(this.interval);
-                this.interval = null;
+                this.interval = undefined;
+                this.interval = undefined;
             }
         });
     }
@@ -482,7 +504,7 @@ export class TextInput extends Component<HTMLInputElement> {
 }
 
 export class NumberInput extends Component<HTMLInputElement> {
-    private interval: number|null = null;
+    private interval?: number;
     readonly value = new Property(0, value => this.elem.value = '' + value);
     readonly disabled = new Property(false, disabled => this.elem.disabled = disabled);
 
@@ -491,7 +513,7 @@ export class NumberInput extends Component<HTMLInputElement> {
         this.elem.type = 'number';
         this.elem.addEventListener('focus', () => {
             this.value.value = parseFloat(this.elem.value);
-            if (this.interval === null) {
+            if (this.interval == undefined) {
                 this.interval = window.setInterval(() => {
                     const value = parseFloat(this.elem.value);
                     if (this.value.value !== value) {
@@ -501,9 +523,9 @@ export class NumberInput extends Component<HTMLInputElement> {
             }
         });
         this.elem.addEventListener('blur', () => {
-            if (this.interval !== null) {
+            if (this.interval != undefined) {
                 clearInterval(this.interval);
-                this.interval = null;
+                this.interval = undefined;
             }
         });
     }
@@ -517,7 +539,7 @@ export interface Option<T> {
 export class Select<T> extends Component<HTMLSelectElement> {
     private optionMap: Record<string, T> = {};
     @DomProperty() disabled?: boolean;
-    readonly value = new Property<T|null>(null, value => this.setValue(value));
+    readonly value = new Property<T|undefined>(undefined, value => this.setValue(value));
 
     constructor() {
         super(document.createElement('select'));
@@ -527,7 +549,7 @@ export class Select<T> extends Component<HTMLSelectElement> {
         });
     }
 
-    private setValue(value: T|null) {
+    private setValue(value?: T) {
     }
 
     get size(): number {
@@ -597,17 +619,17 @@ export class Select<T> extends Component<HTMLSelectElement> {
 }
 
 export class InputLabel extends Component<HTMLLabelElement> {
-    private _input: Component<any>|null = null;
+    private _input?: Component<any>;
 
     constructor() {
         super(document.createElement('label'));
     }
 
-    get input(): Component<any>|null {
+    get input(): Component<any>|undefined {
         return this._input;
     }
 
-    set input(input: Component<any>|null) {
+    set input(input: Component<any>|undefined) {
         this._input = input;
         if (input) {
             this.elem.htmlFor = input.id;
@@ -626,8 +648,8 @@ export class InputLabel extends Component<HTMLLabelElement> {
 }
 
 export class Style extends Component<HTMLElement> {
-    private target: HTMLElement|null = null;
-    readonly name = new Property<keyof CSSStyleDeclaration|null>(null, () => this.update());
+    private target?: HTMLElement;
+    readonly name = new Property<keyof CSSStyleDeclaration|undefined>(undefined, () => this.update());
     readonly value = new Property<string>('', () => this.update());
     constructor() {
         super(document.createElement('span'));
@@ -651,8 +673,8 @@ export class Style extends Component<HTMLElement> {
 }
 
 export class ModalLoader extends Component<HTMLDivElement> {
-    private target: HTMLElement|null = null;
-    private previousFocus: HTMLElement|null = null;
+    private target?: HTMLElement;
+    private previousFocus?: HTMLElement;
 
     constructor() {
         super(document.createElement('div'));
@@ -674,7 +696,7 @@ export class ModalLoader extends Component<HTMLDivElement> {
             return;
         }
         if (visible) {
-            this.previousFocus = document.activeElement as HTMLElement|null;
+            this.previousFocus = document.activeElement as HTMLElement|undefined;
             if (this.previousFocus) {
                 this.previousFocus.blur();
             }
@@ -683,7 +705,7 @@ export class ModalLoader extends Component<HTMLDivElement> {
             this.target.style.opacity = '';
             if (this.previousFocus) {
                 this.previousFocus.focus();
-                this.previousFocus = null;
+                this.previousFocus = undefined;
             }
         }
     }
