@@ -1,712 +1,731 @@
-import { Emitter, DomEmitter, Property, PropertyValue, EmitterObserver } from "./emitter";
-import { Menu } from "./menu";
 
-export type Side = 'top' | 'right' | 'bottom' | 'left' | 'horizontal' | 'vertical';
-
-let nextId = 0;
-
-export function createId(): string {
-    let id;
-    do {
-        id = 'cstkid-' + nextId;
-        nextId++;
-    } while (document.getElementById(id));
-    return id;
-}
-
-export type ComponentProps<C> = {
-    [K in keyof C]?: C[K]|Property<C[K]>|PropertyValue<C[K]>|EmitterObserver<C[K]>;
-};
-
-type ElemChild = Component<HTMLElement>|string|number|Property<string|number>|ElemChild[];
-
-function appendChildren(comp: Component<HTMLElement>, children: ElemChild[]): void {
+function appendChildren(element: HTMLElement, children: JSX.ElementChild[]): void {
     children.forEach(child => {
         if (typeof child === 'string') {
-            comp.elem.appendChild(document.createTextNode(child));
+            element.appendChild(document.createTextNode(child));
         } else if (typeof child === 'number') {
-            comp.elem.appendChild(document.createTextNode('' + child));
+            element.appendChild(document.createTextNode('' + child));
         } else if (Array.isArray(child)) {
-            appendChildren(comp, child);
+            appendChildren(element, child);
         } else if (child instanceof Property) {
             const text = document.createTextNode('' + child.value);
-            child.observe(value => {
+            child.observe((value: string|number) => {
                 text.textContent = '' + value;
             });
-            comp.elem.appendChild(text);
-        } else {
-            comp.append(child);
+            element.appendChild(text);
+        } else if (child instanceof Element) {
+            element.appendChild(child);
         }
     });
 }
 
-function assignComponentProperties<T extends Component<HTMLElement>>(comp: T, props: ComponentProps<T>): void {
-    for (let prop in props) {
-        if (props[prop] instanceof Property) {
-            if (comp[prop] instanceof Property) {
-                (props[prop] as any).bind(comp[prop]);
-            } else {
-                (props[prop] as any).getAndObserve((value: any) => {
-                    comp[prop] = value;
-                });
-            }
-        } else if (comp[prop] instanceof Property) {
-            (comp[prop] as any).value = props[prop];
-        } else if (comp[prop] instanceof Emitter) {
-            (comp[prop] as any).observe(props[prop]);
-        } else {
-            comp[prop] = props[prop] as any;
-        }
-    }
-}
+type ElementAttributes = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject>;
 
-export function elem(name: string, properties: Record<string, string>, ... children: ElemChild[]): Component<HTMLElement>;
-export function elem<T extends HTMLElement, C extends Component<T>>(name: new () => C, properties: ComponentProps<C>, ... children: ElemChild[]): C;
-export function elem<C extends Component<HTMLElement>>(name: string|(new () => C), properties: Record<string, string>|ComponentProps<C>, ... children: ElemChild[]): Component<HTMLElement> {
+export function createElement(name: string, properties: ElementAttributes, ... children: JSX.ElementChild[]): HTMLElement;
+export function createElement<T extends HTMLElement, TProps extends {}>(name: (props: TProps) => T, properties: TProps, ... children: JSX.ElementChild[]): T;
+export function createElement<TProps extends {}>(name: string|((props: TProps) => HTMLElement), properties: TProps & ElementAttributes, ... children: JSX.ElementChild[]): HTMLElement {
     if (typeof name === 'string') {
         const e = document.createElement(name);
         if (properties) {
             for (let prop in properties) {
                 if (properties.hasOwnProperty(prop)) {
-                    e.setAttribute(prop, (properties as Record<string, string>)[prop]);
+                    const value = properties[prop];
+                    if (prop.startsWith('on')) {
+                        const finalName = prop.replace(/Capture$/, '');
+                        const useCapture = prop !== finalName;
+                        const eventName = finalName.toLowerCase().substring(2);
+                        e.addEventListener(eventName, value as EventListenerOrEventListenerObject, useCapture);
+                    } else if (value instanceof Property) {
+                        value.getAndObserve((value: string|number|boolean) => {
+                            if (value === true) {
+                                e.setAttribute(prop, prop);
+                            } else if (value || value === 0) {
+                                e.setAttribute(prop, '' + value)
+                            } else {
+                                e.removeAttribute(prop);
+                            }
+                        });
+                    } else if (value === true) {
+                        e.setAttribute(prop, prop);
+                    } else if (value || value === 0) {
+                        e.setAttribute(prop, '' + value);
+                    }
                 }
             }
         }
-        const comp = new Component(e);
-        appendChildren(comp, children);
-        return comp;
+        appendChildren(e, children);
+        return e;
     } else {
-        const comp = new name();
-        assignComponentProperties(comp, properties as ComponentProps<C>);
-        appendChildren(comp, children);
-        return comp;
+        return name({... properties, children});
     }
 }
 
-export function DomProperty() {
-  return (target: any, key: string) => {
-    Object.defineProperty(target, key, {
-      get() {
-        return this.elem[key];
-      },
-      set(value) {
-        return this.elem[key] = value;
-      }
-    });
-  };
-}
+export type PropertyValue<T> = T extends Property<infer TValue> ? TValue : never;
 
-export function StyleProperty() {
-  return (target: any, key: string) => {
-    Object.defineProperty(target, key, {
-      get() {
-        return this.elem.style[key];
-      },
-      set(value) {
-        return this.elem.style[key] = value;
-      }
-    });
-  };
-}
+export type Observer<T> = (event: T) => any;
 
-export class Component<T extends HTMLElement> {
-    private __bogusProps: ComponentProps<this> = {};
-    readonly class = new Property<string[]|Record<string, boolean>>([], classes => {
-        if (Array.isArray(classes)) {
-            classes.forEach(className => this.classList.add(className));
-        } else {
-            for (let className in classes) {
-                if (classes[className]) {
-                    this.classList.add(className);
-                } else {
-                    this.classList.remove(className);
-                }
+export type PropertyObserver<T> = (newValue: T, oldValue: T) => any;
+
+export class Property<T> {
+    private observers: PropertyObserver<T>[] = [];
+    private binding: Property<T>[] = [this];
+
+    constructor(protected _value: T) {
+    }
+
+    get value(): T {
+        return this._value;
+    }
+
+    set value(value: T) {
+        for (let prop of this.binding) {
+            const old = prop._value;
+            prop._value = value;
+            for (let observer of prop.observers) {
+                observer(value, old);
             }
         }
-    });
-    children: Component<any>[] = [];
-    initialized: boolean = false;
-    protected initActions: (() => void)[] = [];
-    protected destroyActions: (() => void)[] = [];
-    private _contextMenu?: Menu;
-    private contextMenuListenerAdded = false;
-
-    constructor(public elem: T, public inner: HTMLElement = elem) {
     }
 
-    get id(): string {
-        if (!this.elem.id) {
-            this.elem.id = createId();
-        }
-        return this.elem.id;
-    }
-
-    set id(id: string) {
-        this.elem.id = id;
-    }
-    
-    init() {
-        if (this.initialized) {
+    bind(prop: Property<T>) {
+        if (prop.binding === this.binding) {
             return;
         }
-        this.initActions.forEach(f => f());
-        this.children.forEach(c => c.init());
-        this.initialized = true;
-    }
-
-    dispose() {
-        if (!this.initialized) {
-            return;
-        }
-        this.destroyActions.forEach(f => f());
-        this.destroyActions = [];
-        this.children.forEach(c => c.dispose());
-        this.initialized = false;
-    }
-
-    observeWindow<K extends keyof WindowEventMap>(type: K, listener: (ev: WindowEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void {
-        const action = () => {
-            this.elem.ownerDocument.defaultView?.addEventListener(type, listener, options);
-            this.destroyActions.push(() => {
-                this.elem.ownerDocument.defaultView?.removeEventListener(type, listener, options);
-            });
-        };
-        if (this.initialized) {
-            action();
-        } else {
-            this.initActions.push(action);
+        prop.value = this.value;
+        for (let boundProp of prop.binding) {
+            this.binding.push(boundProp);
+            boundProp.binding = this.binding;
         }
     }
 
-    observeDocument<K extends keyof DocumentEventMap>(type: K, listener: (ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void {
-        const action = () => {
-            this.elem.ownerDocument.addEventListener(type, listener, options);
-            this.destroyActions.push(() => {
-                this.elem.ownerDocument.removeEventListener(type, listener, options);
-            });
-        };
-        if (this.initialized) {
-            action();
-        } else {
-            this.initActions.push(action);
-        }
+    getAndObserve(observer: PropertyObserver<T>): () => void {
+        observer(this._value, this._value);
+        return this.observe(observer);
     }
 
-    append<C extends HTMLElement>(child: Component<C>): void {
-        this.inner.appendChild(child.elem);
-        this.children.push(child as any);
-        if (this.initialized) {
-            child.init();
-        }
+    observe(observer: PropertyObserver<T>): () => void {
+        this.observers.push(observer);
+        return () => this.unobserve(observer);
     }
 
-    appendHtml<TNode extends Node>(elem: TNode): void {
-        this.inner.appendChild(elem);
+    unobserve(observer: PropertyObserver<T>): void {
+        this.observers = this.observers.filter(o => o !== observer);
     }
 
-    remove<C extends HTMLElement>(child: Component<C>|HTMLElement) {
-        let index;
-        if (child instanceof Component) {
-            index = this.children.indexOf(child as any);
-        } else {
-            index = this.children.findIndex(c => c.elem === child);
-        }
-        if (index >= 0) {
-            if (this.initialized) {
-                this.children[index].dispose();
-            }
-            this.inner.removeChild(this.children[index].elem);
-            this.children.splice(index, 1);
-        }
-    }
-
-    clear() {
-        this.children.forEach(c => c.dispose());
-        this.children = [];
-        this.inner.innerHTML = '';
-    }
-
-    get visible(): boolean {
-        return this.elem.style.display !== 'none';
-    }
-
-    set visible(visible: boolean) {
-        this.elem.style.display = visible ? '' : 'none';
-    }
-
-    get classList(): DOMTokenList {
-        return this.elem.classList;
-    }
-
-    get style(): CSSStyleDeclaration {
-        return this.elem.style;
-    }
-
-    get textContent(): string|null {
-        return this.elem.textContent;
-    }
-
-    set textContent(text: string|null) {
-        this.elem.textContent = text;
-    }
-
-    get alignSelf(): string {
-        return this.style.alignSelf;
-    }
-
-    set alignSelf(alignSelf: string) {
-        this.style.alignSelf = alignSelf;
-    }
-
-    get justifySelf(): string {
-        return this.style.justifySelf;
-    }
-
-    set justifySelf(justifySelf: string) {
-        this.style.justifySelf = justifySelf;
-    }
-
-    get flexGrow(): string {
-        return this.style.flexGrow;
-    }
-
-    set flexGrow(flexGrow: string) {
-        this.style.flexGrow = flexGrow;
-    }
-
-    get flexShrink(): string {
-        return this.style.flexShrink;
-    }
-
-    set flexShrink(flexShrink: string) {
-        this.style.flexShrink = flexShrink;
-    }
-
-    get flexBasis(): string {
-        return this.style.flexBasis;
-    }
-
-    set flexBasis(flexBasis: string) {
-        this.style.flexBasis = flexBasis;
-    }
-
-    get textAlign(): string {
-        return this.style.textAlign;
-    }
-
-    set textAlign(textAlign: string) {
-        this.style.textAlign = textAlign;
-    }
-
-    getAttibute(attribute: string): string|null {
-        return this.elem.getAttribute(attribute);
-    }
-
-    setAttribute(attribute: string, value: string) {
-        this.elem.setAttribute(attribute, value);
-    }
-
-    get padding(): Side[]|boolean {
-        if (this.classList.contains('padding')) {
-            return true;
-        }
-        return (['top', 'right', 'bottom', 'left', 'vertical', 'horizontal'] as const)
-            .filter(side => this.classList.contains(`padding-${side}`));
-    }
-
-    set padding(padding: Side[]|boolean) {
-        if (padding === true) {
-            this.classList.add('padding');
-        } else {
-            ['', '-top', '-right', '-bottom', '-left', '-vertical', '-horizontal']
-                .forEach(side => this.classList.remove(`padding${side}`));
-            if (padding !== false) {
-                padding.forEach(side => {
-                    this.classList.add('padding-' + side);
-                });
-            }
-        }
-    }
-
-    get margin(): Side[]|boolean {
-        if (this.classList.contains('margin')) {
-            return true;
-        }
-        return (['top', 'right', 'bottom', 'left', 'vertical', 'horizontal'] as const)
-            .filter(side => this.classList.contains(`margin-${side}`));
-    }
-
-    set margin(margin: Side[]|boolean) {
-        if (margin === true) {
-            this.classList.add('margin');
-        } else {
-            ['', '-top', '-right', '-bottom', '-left', '-vertical', '-horizontal']
-                .forEach(side => this.classList.remove(`margin${side}`));
-            if (margin !== false) {
-                margin.forEach(side => {
-                    this.classList.add('margin-' + side);
-                });
-            }
-        }
-    }
-
-    get contextMenu(): Menu|undefined {
-        return this._contextMenu;
-    }
-
-    set contextMenu(contextMenu: Menu|undefined) {
-        this._contextMenu = contextMenu;
-        if (this._contextMenu && !this.contextMenuListenerAdded) {
-            this.elem.addEventListener('contextmenu', e => {
-                if (!this._contextMenu) {
-                    return;
-                }
-                e.preventDefault();
-                e.stopPropagation();
-                this._contextMenu.openAtCursor(e);
-            });
-        }
-    }
-}
-
-export class Form extends Component<HTMLFormElement> {
-    readonly submit = new DomEmitter(this.elem, 'submit');
-
-    constructor() {
-        super(document.createElement('form'));
-        this.submit.observe(e => e.preventDefault());
-    }
-}
-
-export class Button extends Component<HTMLButtonElement> {
-    readonly click = new DomEmitter(this.elem, 'click');
-
-    constructor(text: string, ... classList: string[]) {
-        super(document.createElement('button'));
-        this.elem.textContent = text;
-        classList.forEach(c => this.classList.add(c));
-        this.type = 'button';
-    }
-
-    get type(): string {
-        return this.elem.type;
-    }
-
-    set type(type: string) {
-        this.elem.type = type;
-    }
-
-    get disabled(): boolean {
-        return this.elem.disabled;
-    }
-
-    set disabled(disabled: boolean) {
-        this.elem.disabled = disabled;
-    }
-}
-
-export class Radio extends Component<HTMLInputElement> {
-    @DomProperty() name?: string;
-    @DomProperty() value?: string;
-    @DomProperty() disabled?: boolean;
-    readonly checked = new Property(this.elem.checked, c => this.elem.checked = c);
-
-    constructor() {
-        super(document.createElement('input'));
-        this.elem.type = 'radio';
-        this.elem.addEventListener('change', () => {
-            this.checked.value = this.elem.checked;
+    map<T2>(f: (value: T) => T2): Property<T2> {
+        const prop = new Property(f(this._value));
+        this.observe(value => {
+            prop.value = f(value);
         });
+        return prop;
     }
 
-    init() {
-        super.init();
-        if (this.elem.form) {
-            for (let element of Array.from(this.elem.form.elements)) {
-                if (element instanceof HTMLInputElement && element.type === 'radio') {
-                    element.addEventListener('change', () => {
-                        this.checked.value = this.elem.checked;
-                    });
-                }
-            }
-        }
+    flatMap<T2>(f: (value: T) => Property<T2>): Property<T2> {
+        let other = f(this._value);
+        const prop = new Property(other.value);
+        let unobserver = other.observe(value => {
+            prop.value = value;
+        });
+        this.observe(value => {
+            unobserver();
+            other = f(value);
+            prop.value = other.value;
+            unobserver = other.observe(value => {
+                prop.value = value;
+            });
+        });
+        return prop;
+    }
+
+    get not(): Property<boolean> {
+        return this.map(x => !x);
+    }
+
+    and<T2>(other: Property<T2>): Property<T2|false> {
+        const prop = new Property(!!this.value && other.value);
+        let unobserver = other.observe(value => {
+            prop.value = value;
+        });
+        this.observe(value => {
+            unobserver();
+            prop.value = !!value && other.value;
+            unobserver = other.observe(value => {
+                prop.value = value;
+            });
+        });
+        return prop;
+    }
+
+    or<T2>(other: Property<T2>): Property<T|T2> {
+        const prop = new Property(this.value || other.value);
+        let unobserver = other.observe(value => {
+            prop.value = value;
+        });
+        this.observe(value => {
+            unobserver();
+            prop.value = value || other.value;
+            unobserver = other.observe(value => {
+                prop.value = value;
+            });
+        });
+        return prop;
     }
 }
 
-export class RadioGroup {
-    constructor(public name: string) {
-    }
-
-    add(value: string, checked: boolean = false): Radio {
-        return <Radio name={this.name} value={value} checked={checked}/>
+export function bind<T>(defaultValue: Property<T>|T, binding?: Property<T>|T): Property<T> {
+    if (typeof binding === 'undefined') {
+        if (defaultValue instanceof Property) {
+            return defaultValue;
+        } else {
+            return new Property(defaultValue);
+        }
+    } else if (binding instanceof Property) {
+        return binding;
+    } else {
+        return new Property(binding);
     }
 }
 
-export class TextInput extends Component<HTMLInputElement> {
-    private interval?: number;
-    private pendingFocus: boolean = false;
-    readonly value = new Property('', value => this.elem.value = value);
+export class ListProperty<T> {
+    readonly length = bind(0);
+    // TODO
+}
 
-    constructor() {
-        super(document.createElement('input'));
-        this.elem.type = 'text';
-        this.elem.addEventListener('focus', () => {
-            this.value.value = this.elem.value;
-            if (this.interval == undefined) {
-                this.interval = window.setInterval(() => {
-                    if (this.value.value !== this.elem.value) {
-                        this.value.value = this.elem.value;
-                    }
-                }, 33);
-            }
-        });
-        this.elem.addEventListener('blur', () => {
-            if (this.interval != undefined) {
-                clearInterval(this.interval);
-                this.interval = undefined;
-                this.interval = undefined;
-            }
-        });
-    }
+export function bindList<T>(initialElements: T[] = []): ListProperty<T> {
+    throw 'not implemented';
+}
 
-    init() {
-        super.init();
-    }
+export function loop<T>(elements: ListProperty<T>|Property<T[]>, body: (value: Property<T>) => JSX.Element): JSX.Element {
+    throw 'not implemented';
+}
 
-    get disabled(): boolean {
-        return this.elem.disabled;
-    }
-
-    set disabled(disabled: boolean) {
-        this.elem.disabled = disabled;;
-        if (this.pendingFocus) {
-            this.elem.focus();
-            this.pendingFocus = false;
-        }
-    }
-
-    get focus(): boolean {
-        return document.activeElement === this.elem;
-    }
-
-    set focus(focus: boolean) {
-        if (focus) {
-            if (this.disabled) {
-                this.pendingFocus = true;
+export function flatten(elements: JSX.Element[]|JSX.Element): HTMLElement[] {
+    const result = [];
+    if (Array.isArray(elements)) {
+        elements.forEach(element => {
+            if (Array.isArray(element)) {
+                element.forEach(e => result.push(e));
             } else {
-                this.elem.focus();
+                result.push(element);
             }
-        } else {
-            this.elem.blur();
-            this.pendingFocus = false;
+        });
+    } else {
+        result.push(elements);
+    }
+    return result;
+}
+
+export function map<T>(property: Property<T>, f: ((value: T) => JSX.Element[]|JSX.Element)): JSX.Element {
+    const marker = document.createElement('span');
+    marker.style.display = 'none';
+    let elements: HTMLElement[] = [marker];
+    property.getAndObserve(value => {
+        for (let i = 1; i < elements.length; i++) {
+            const element = elements[i];
+            if (element.parentElement) {
+                element.parentElement.removeChild(element);
+            }
         }
-    }
-}
-
-export class NumberInput extends Component<HTMLInputElement> {
-    private interval?: number;
-    readonly value = new Property(0, value => this.elem.value = '' + value);
-    readonly disabled = new Property(false, disabled => this.elem.disabled = disabled);
-
-    constructor() {
-        super(document.createElement('input'));
-        this.elem.type = 'number';
-        this.elem.addEventListener('focus', () => {
-            this.value.value = parseFloat(this.elem.value);
-            if (this.interval == undefined) {
-                this.interval = window.setInterval(() => {
-                    const value = parseFloat(this.elem.value);
-                    if (this.value.value !== value) {
-                        this.value.value = value;
-                    }
-                }, 33);
+        elements.splice(1, elements.length);
+        flatten(f(value)).forEach(element => {
+            if (marker.parentElement) {
+                marker.parentElement.insertBefore(element, marker);
             }
+            elements.push(element);
         });
-        this.elem.addEventListener('blur', () => {
-            if (this.interval != undefined) {
-                clearInterval(this.interval);
-                this.interval = undefined;
+    });
+    return elements;
+}
+
+export function ifDefined<T>(property: Property<T|undefined>, f: ((value: T) => JSX.Element)) {
+    const marker = document.createElement('span');
+    marker.style.display = 'none';
+    let elements: HTMLElement[] = [marker];
+    property.getAndObserve(value => {
+        for (let i = 1; i < elements.length; i++) {
+            const element = elements[i];
+            if (element.parentElement) {
+                element.parentElement.removeChild(element);
             }
-        });
-    }
-}
-
-export interface Option<T> {
-    value: T;
-    label: string|Property<string>;
-}
-
-export class Select<T> extends Component<HTMLSelectElement> {
-    private optionMap: Record<string, T> = {};
-    @DomProperty() disabled?: boolean;
-    readonly value = new Property<T|undefined>(undefined, value => this.setValue(value));
-
-    constructor() {
-        super(document.createElement('select'));
-        this.elem.size = 1;
-        this.elem.addEventListener('change', () => {
-            this.value.value = this.optionMap[this.elem.value];
-        });
-    }
-
-    private setValue(value?: T) {
-    }
-
-    get size(): number {
-        return this.elem.size;
-    }
-
-    set size(size: number) {
-        this.elem.size = size;
-    }
-
-    get multiple(): boolean {
-        return this.elem.multiple;
-    }
-
-    set multiple(multiple: boolean) {
-        this.elem.multiple = multiple;
-    }
-
-    get options(): Option<T>[] {
-        const options: Option<T>[] = [];
-        for (let option of Array.from(this.elem.options)) {
-            options.push({
-                value: this.optionMap[option.value],
-                label: option.label
+        }
+        elements.splice(1, elements.length);
+        if (value != undefined) {
+            flatten(f(value)).forEach(element => {
+                if (marker.parentElement) {
+                    marker.parentElement.insertBefore(element, marker);
+                }
+                elements.push(element);
             });
         }
-        return options;
-    }
-
-    set options(options: Option<T>[]) {
-        this.clear();
-        this.optionMap = {};
-        let nextValue = 0;
-        for (let option of options) {
-            const optionElem = document.createElement('option');
-            optionElem.value = '' + nextValue;
-            this.optionMap[optionElem.value] = option.value;
-            if (option.label instanceof Property) {
-                optionElem.label = option.label.value;
-                option.label.observe(value => {
-                    optionElem.label = value;
-                });
-            } else {
-                optionElem.label = option.label;
-            }
-            this.elem.appendChild(optionElem);
-            nextValue++;
-        }
-        this.value.value = this.optionMap[this.elem.value];
-    }
-
-    get selection(): T[] {
-        const selection: T[] = [];
-        for (let option of Array.from(this.elem.selectedOptions)) {
-            selection.push(this.optionMap[option.value]);
-        }
-        return selection;
-    }
-
-    set selection(selection: T[]) {
-        for (let option of Array.from(this.elem.selectedOptions)) {
-            if (selection.indexOf(this.optionMap[option.value]) >= 0) {
-                option.selected = true;
-            }
-        }
-    }
+    });
+    return elements;
 }
 
-export class InputLabel extends Component<HTMLLabelElement> {
-    private _input?: Component<any>;
-
-    constructor() {
-        super(document.createElement('label'));
+export function Cond(props: {
+    children: JSX.Element[]|JSX.Element
+    when: Property<any>,
+} | {
+    children: JSX.Element[]|JSX.Element
+    unless: Property<any>,
+}) {
+    const children = flatten(props.children);
+    if ('when' in props) {
+        props.when.getAndObserve(condition => {
+            const display = condition ? '' : 'none';
+            children.forEach(child => child.style.display = display);
+        });
+    } else {
+        props.unless.getAndObserve(condition => {
+            const display = condition ? 'none' : '';
+            children.forEach(child => child.style.display = display);
+        });
     }
-
-    get input(): Component<any>|undefined {
-        return this._input;
-    }
-
-    set input(input: Component<any>|undefined) {
-        this._input = input;
-        if (input) {
-            this.elem.htmlFor = input.id;
-        } else {
-            this.elem.htmlFor = '';
-        }
-    }
-
-    get inputId(): string {
-        return this.elem.htmlFor;
-    }
-
-    set inputId(id: string) {
-        this.elem.htmlFor = id;
-    }
+    return children;
 }
 
-export class Style extends Component<HTMLElement> {
-    private target?: HTMLElement;
-    readonly name = new Property<keyof CSSStyleDeclaration|undefined>(undefined, () => this.update());
-    readonly value = new Property<string>('', () => this.update());
-    constructor() {
-        super(document.createElement('span'));
-        this.visible = false;
-    }
-
-    init() {
-        super.init();
-        if (this.elem.parentElement) {
-            this.target = this.elem.parentElement;
-            this.target.removeChild(this.elem);
-            this.update();
+export function Style(props: {
+    children: JSX.Element[]|JSX.Element
+} & {
+    [TKey in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[TKey]|Property<CSSStyleDeclaration[TKey]>
+}) {
+    const children = flatten(props.children);
+    (Array.isArray(children) ? children : [children]).forEach(child => {
+        for (let key in props) {
+            if (props.hasOwnProperty(key) && key !== 'children') {
+                const value = props[key];
+                if (value instanceof Property) {
+                    value.getAndObserve(v => child.style[key] = v);
+                } else if (value) {
+                    child.style[key] = value;
+                }
+            }
         }
-    }
-
-    update() {
-        if (this.target && this.name.value) {
-            this.target.style[this.name.value as any] = this.value.value;
-        }
-    }
+    });
+    return children;
 }
 
-export class ModalLoader extends Component<HTMLDivElement> {
-    private target?: HTMLElement;
-    private previousFocus?: HTMLElement;
-
-    constructor() {
-        super(document.createElement('div'));
-        this.classList.add('modal-loader');
-        this.visible = false;
-    }
-
-    init() {
-        super.init();
-        if (this.elem.parentElement) {
-            this.target = this.elem.parentElement;
-            this.target.style.position = 'relative';
-        }
-    }
-
-    set visible(visible: boolean) {
-        this.elem.style.display = visible ? '' : 'none';
-        if (!this.target) {
-            return;
-        }
-        if (visible) {
-            this.previousFocus = document.activeElement as HTMLElement|undefined;
-            if (this.previousFocus) {
-                this.previousFocus.blur();
-            }
-            this.target.style.opacity = '0.5';
-        } else {
-            this.target.style.opacity = '';
-            if (this.previousFocus) {
-                this.previousFocus.focus();
-                this.previousFocus = undefined;
+export function Class(props: {
+    children: JSX.Element[]|JSX.Element
+    name: Property<string|undefined>|string|undefined,
+    enable?: Property<boolean>|boolean,
+}) {
+    const children = flatten(props.children);
+    const name = bind(undefined, props.name);
+    const enable = bind(true, props.enable);
+    let currentClass: string|undefined;
+    enable.flatMap(enable => name.map(n => enable ? n : undefined)).getAndObserve(n => {
+        if (currentClass) {
+            for (const child of children) {
+                child.classList.remove(currentClass);
             }
         }
+        currentClass = n;
+        if (currentClass) {
+            for (const child of children) {
+                child.classList.add(currentClass);
+            }
+        }
+    });
+    return children;
+}
+
+export function handle<TEvent>(f?: (ev: TEvent) => void): (ev: TEvent) => void {
+    return f || (() => {});
+}
+
+export function mount(container: HTMLElement, ... elements: JSX.Element[]) {
+    flatten(elements).forEach(e => container.appendChild(e));
+}
+
+export function Fragment({children}: {children: JSX.Element[]|JSX.Element}) {
+    return flatten(children);
+}
+
+declare global {
+    namespace JSX {
+        type Element = HTMLElement|HTMLElement[];
+
+        interface ElementAttributesProperty {
+            props: any;
+        }
+        interface ElementChildrenAttribute {
+            children: any;
+        }
+
+        type ElementChild = HTMLElement|string|number|Property<string>|Property<number>|ElementChild[];
+
+        type EventHandler<TEvent extends Event> = (this: HTMLElement, ev: TEvent) => void;
+
+        type ClipboardEventHandler = EventHandler<ClipboardEvent>;
+        type CompositionEventHandler = EventHandler<CompositionEvent>;
+        type DragEventHandler = EventHandler<DragEvent>;
+        type FocusEventHandler = EventHandler<FocusEvent>;
+        type KeyboardEventHandler = EventHandler<KeyboardEvent>;
+        type MouseEventHandler = EventHandler<MouseEvent>;
+        type TouchEventHandler = EventHandler<TouchEvent>;
+        type UIEventHandler = EventHandler<UIEvent>;
+        type WheelEventHandler = EventHandler<WheelEvent>;
+        type AnimationEventHandler = EventHandler<AnimationEvent>;
+        type TransitionEventHandler = EventHandler<TransitionEvent>;
+        type GenericEventHandler = EventHandler<Event>;
+        type PointerEventHandler = EventHandler<PointerEvent>;
+
+        interface DOMAttributes {
+            children?: ElementChild[]|ElementChild;
+
+            // Image Events
+            onLoad?: GenericEventHandler;
+            onLoadCapture?: GenericEventHandler;
+            onError?: GenericEventHandler;
+            onErrorCapture?: GenericEventHandler;
+
+            // Clipboard Events
+            onCopy?: ClipboardEventHandler;
+            onCopyCapture?: ClipboardEventHandler;
+            onCut?: ClipboardEventHandler;
+            onCutCapture?: ClipboardEventHandler;
+            onPaste?: ClipboardEventHandler;
+            onPasteCapture?: ClipboardEventHandler;
+
+            // Composition Events
+            onCompositionEnd?: CompositionEventHandler;
+            onCompositionEndCapture?: CompositionEventHandler;
+            onCompositionStart?: CompositionEventHandler;
+            onCompositionStartCapture?: CompositionEventHandler;
+            onCompositionUpdate?: CompositionEventHandler;
+            onCompositionUpdateCapture?: CompositionEventHandler;
+
+            // Details Events
+            onToggle?: GenericEventHandler;
+
+            // Focus Events
+            onFocus?: FocusEventHandler;
+            onFocusCapture?: FocusEventHandler;
+            onBlur?: FocusEventHandler;
+            onBlurCapture?: FocusEventHandler;
+
+            // Form Events
+            onChange?: GenericEventHandler;
+            onChangeCapture?: GenericEventHandler;
+            onInput?: GenericEventHandler;
+            onInputCapture?: GenericEventHandler;
+            onSearch?: GenericEventHandler;
+            onSearchCapture?: GenericEventHandler;
+            onSubmit?: GenericEventHandler;
+            onSubmitCapture?: GenericEventHandler;
+            onInvalid?: GenericEventHandler;
+            onInvalidCapture?: GenericEventHandler;
+            onReset?: GenericEventHandler;
+            onResetCapture?: GenericEventHandler;
+            onFormData?: GenericEventHandler;
+            onFormDataCapture?: GenericEventHandler;
+
+            // Keyboard Events
+            onKeyDown?: KeyboardEventHandler;
+            onKeyDownCapture?: KeyboardEventHandler;
+            onKeyPress?: KeyboardEventHandler;
+            onKeyPressCapture?: KeyboardEventHandler;
+            onKeyUp?: KeyboardEventHandler;
+            onKeyUpCapture?: KeyboardEventHandler;
+
+            // Media Events
+            onAbort?: GenericEventHandler;
+            onAbortCapture?: GenericEventHandler;
+            onCanPlay?: GenericEventHandler;
+            onCanPlayCapture?: GenericEventHandler;
+            onCanPlayThrough?: GenericEventHandler;
+            onCanPlayThroughCapture?: GenericEventHandler;
+            onDurationChange?: GenericEventHandler;
+            onDurationChangeCapture?: GenericEventHandler;
+            onEmptied?: GenericEventHandler;
+            onEmptiedCapture?: GenericEventHandler;
+            onEncrypted?: GenericEventHandler;
+            onEncryptedCapture?: GenericEventHandler;
+            onEnded?: GenericEventHandler;
+            onEndedCapture?: GenericEventHandler;
+            onLoadedData?: GenericEventHandler;
+            onLoadedDataCapture?: GenericEventHandler;
+            onLoadedMetadata?: GenericEventHandler;
+            onLoadedMetadataCapture?: GenericEventHandler;
+            onLoadStart?: GenericEventHandler;
+            onLoadStartCapture?: GenericEventHandler;
+            onPause?: GenericEventHandler;
+            onPauseCapture?: GenericEventHandler;
+            onPlay?: GenericEventHandler;
+            onPlayCapture?: GenericEventHandler;
+            onPlaying?: GenericEventHandler;
+            onPlayingCapture?: GenericEventHandler;
+            onProgress?: GenericEventHandler;
+            onProgressCapture?: GenericEventHandler;
+            onRateChange?: GenericEventHandler;
+            onRateChangeCapture?: GenericEventHandler;
+            onSeeked?: GenericEventHandler;
+            onSeekedCapture?: GenericEventHandler;
+            onSeeking?: GenericEventHandler;
+            onSeekingCapture?: GenericEventHandler;
+            onStalled?: GenericEventHandler;
+            onStalledCapture?: GenericEventHandler;
+            onSuspend?: GenericEventHandler;
+            onSuspendCapture?: GenericEventHandler;
+            onTimeUpdate?: GenericEventHandler;
+            onTimeUpdateCapture?: GenericEventHandler;
+            onVolumeChange?: GenericEventHandler;
+            onVolumeChangeCapture?: GenericEventHandler;
+            onWaiting?: GenericEventHandler;
+            onWaitingCapture?: GenericEventHandler;
+
+            // MouseEvents
+            onClick?: MouseEventHandler;
+            onClickCapture?: MouseEventHandler;
+            onContextMenu?: MouseEventHandler;
+            onContextMenuCapture?: MouseEventHandler;
+            onDblClick?: MouseEventHandler;
+            onDblClickCapture?: MouseEventHandler;
+            onDrag?: DragEventHandler;
+            onDragCapture?: DragEventHandler;
+            onDragEnd?: DragEventHandler;
+            onDragEndCapture?: DragEventHandler;
+            onDragEnter?: DragEventHandler;
+            onDragEnterCapture?: DragEventHandler;
+            onDragExit?: DragEventHandler;
+            onDragExitCapture?: DragEventHandler;
+            onDragLeave?: DragEventHandler;
+            onDragLeaveCapture?: DragEventHandler;
+            onDragOver?: DragEventHandler;
+            onDragOverCapture?: DragEventHandler;
+            onDragStart?: DragEventHandler;
+            onDragStartCapture?: DragEventHandler;
+            onDrop?: DragEventHandler;
+            onDropCapture?: DragEventHandler;
+            onMouseDown?: MouseEventHandler;
+            onMouseDownCapture?: MouseEventHandler;
+            onMouseEnter?: MouseEventHandler;
+            onMouseEnterCapture?: MouseEventHandler;
+            onMouseLeave?: MouseEventHandler;
+            onMouseLeaveCapture?: MouseEventHandler;
+            onMouseMove?: MouseEventHandler;
+            onMouseMoveCapture?: MouseEventHandler;
+            onMouseOut?: MouseEventHandler;
+            onMouseOutCapture?: MouseEventHandler;
+            onMouseOver?: MouseEventHandler;
+            onMouseOverCapture?: MouseEventHandler;
+            onMouseUp?: MouseEventHandler;
+            onMouseUpCapture?: MouseEventHandler;
+
+            // Selection Events
+            onSelect?: GenericEventHandler;
+            onSelectCapture?: GenericEventHandler;
+
+            // Touch Events
+            onTouchCancel?: TouchEventHandler;
+            onTouchCancelCapture?: TouchEventHandler;
+            onTouchEnd?: TouchEventHandler;
+            onTouchEndCapture?: TouchEventHandler;
+            onTouchMove?: TouchEventHandler;
+            onTouchMoveCapture?: TouchEventHandler;
+            onTouchStart?: TouchEventHandler;
+            onTouchStartCapture?: TouchEventHandler;
+
+            // Pointer Events
+            onPointerOver?: PointerEventHandler;
+            onPointerOverCapture?: PointerEventHandler;
+            onPointerEnter?: PointerEventHandler;
+            onPointerEnterCapture?: PointerEventHandler;
+            onPointerDown?: PointerEventHandler;
+            onPointerDownCapture?: PointerEventHandler;
+            onPointerMove?: PointerEventHandler;
+            onPointerMoveCapture?: PointerEventHandler;
+            onPointerUp?: PointerEventHandler;
+            onPointerUpCapture?: PointerEventHandler;
+            onPointerCancel?: PointerEventHandler;
+            onPointerCancelCapture?: PointerEventHandler;
+            onPointerOut?: PointerEventHandler;
+            onPointerOutCapture?: PointerEventHandler;
+            onPointerLeave?: PointerEventHandler;
+            onPointerLeaveCapture?: PointerEventHandler;
+            onGotPointerCapture?: PointerEventHandler;
+            onGotPointerCaptureCapture?: PointerEventHandler;
+            onLostPointerCapture?: PointerEventHandler;
+            onLostPointerCaptureCapture?: PointerEventHandler;
+
+            // UI Events
+            onScroll?: UIEventHandler;
+            onScrollCapture?: UIEventHandler;
+
+            // Wheel Events
+            onWheel?: WheelEventHandler;
+            onWheelCapture?: WheelEventHandler;
+
+            // Animation Events
+            onAnimationStart?: AnimationEventHandler;
+            onAnimationStartCapture?: AnimationEventHandler;
+            onAnimationEnd?: AnimationEventHandler;
+            onAnimationEndCapture?: AnimationEventHandler;
+            onAnimationIteration?: AnimationEventHandler;
+            onAnimationIterationCapture?: AnimationEventHandler;
+
+            // Transition Events
+            onTransitionEnd?: TransitionEventHandler;
+            onTransitionEndCapture?: TransitionEventHandler;
+        }
+
+        type Attribute<T> = T|Property<T>;
+
+        interface HTMLAttributes extends DOMAttributes {
+            // Standard HTML Attributes
+            accept?: Attribute<string>;
+            acceptCharset?: Attribute<string>;
+            accessKey?: Attribute<string>;
+            action?: Attribute<string>;
+            allowFullScreen?: Attribute<boolean>;
+            allowTransparency?: Attribute<boolean>;
+            alt?: Attribute<string>;
+            as?: Attribute<string>;
+            async?: Attribute<boolean>;
+            autocomplete?: Attribute<string>;
+            autoComplete?: Attribute<string>;
+            autocorrect?: Attribute<string>;
+            autoCorrect?: Attribute<string>;
+            autofocus?: Attribute<boolean>;
+            autoFocus?: Attribute<boolean>;
+            autoPlay?: Attribute<boolean>;
+            capture?: Attribute<boolean | string>;
+            cellPadding?: Attribute<number | string>;
+            cellSpacing?: Attribute<number | string>;
+            charSet?: Attribute<string>;
+            challenge?: Attribute<string>;
+            checked?: Attribute<boolean>;
+            class?: Attribute<string>;
+            // className?: Attribute<string>;
+            cols?: Attribute<number>;
+            colSpan?: Attribute<number>;
+            content?: Attribute<string>;
+            contentEditable?: Attribute<boolean>;
+            contextMenu?: Attribute<string>;
+            controls?: Attribute<boolean>;
+            controlsList?: Attribute<string>;
+            coords?: Attribute<string>;
+            crossOrigin?: Attribute<string>;
+            data?: Attribute<string>;
+            dateTime?: Attribute<string>;
+            default?: Attribute<boolean>;
+            defer?: Attribute<boolean>;
+            dir?: Attribute<"auto" | "rtl" | "ltr">;
+            disabled?: Attribute<boolean>;
+            disableRemotePlayback?: Attribute<boolean>;
+            download?: Attribute<string>;
+            draggable?: Attribute<boolean>;
+            encType?: Attribute<string>;
+            form?: Attribute<string>;
+            formAction?: Attribute<string>;
+            formEncType?: Attribute<string>;
+            formMethod?: Attribute<string>;
+            formNoValidate?: Attribute<boolean>;
+            formTarget?: Attribute<string>;
+            frameBorder?: Attribute<number | string>;
+            headers?: Attribute<string>;
+            height?: Attribute<number | string>;
+            hidden?: Attribute<boolean>;
+            high?: Attribute<number>;
+            href?: Attribute<string>;
+            hrefLang?: Attribute<string>;
+            for?: Attribute<string>;
+            htmlFor?: Attribute<string>;
+            httpEquiv?: Attribute<string>;
+            icon?: Attribute<string>;
+            id?: Attribute<string>;
+            inputMode?: Attribute<string>;
+            integrity?: Attribute<string>;
+            is?: Attribute<string>;
+            keyParams?: Attribute<string>;
+            keyType?: Attribute<string>;
+            kind?: Attribute<string>;
+            label?: Attribute<string>;
+            lang?: Attribute<string>;
+            list?: Attribute<string>;
+            loading?: Attribute<"eager" | "lazy">;
+            loop?: Attribute<boolean>;
+            low?: Attribute<number>;
+            manifest?: Attribute<string>;
+            marginHeight?: Attribute<number>;
+            marginWidth?: Attribute<number>;
+            max?: Attribute<number | string>;
+            maxLength?: Attribute<number>;
+            media?: Attribute<string>;
+            mediaGroup?: Attribute<string>;
+            method?: Attribute<string>;
+            min?: Attribute<number | string>;
+            minLength?: Attribute<number>;
+            multiple?: Attribute<boolean>;
+            muted?: Attribute<boolean>;
+            name?: Attribute<string>;
+            nonce?: Attribute<string>;
+            noValidate?: Attribute<boolean>;
+            open?: Attribute<boolean>;
+            optimum?: Attribute<number>;
+            pattern?: Attribute<string>;
+            placeholder?: Attribute<string>;
+            playsInline?: Attribute<boolean>;
+            poster?: Attribute<string>;
+            preload?: Attribute<string>;
+            radioGroup?: Attribute<string>;
+            readOnly?: Attribute<boolean>;
+            rel?: Attribute<string>;
+            required?: Attribute<boolean>;
+            role?: Attribute<string>;
+            rows?: Attribute<number>;
+            rowSpan?: Attribute<number>;
+            sandbox?: Attribute<string>;
+            scope?: Attribute<string>;
+            scoped?: Attribute<boolean>;
+            scrolling?: Attribute<string>;
+            seamless?: Attribute<boolean>;
+            selected?: Attribute<boolean>;
+            shape?: Attribute<string>;
+            size?: Attribute<number>;
+            sizes?: Attribute<string>;
+            slot?: Attribute<string>;
+            span?: Attribute<number>;
+            spellcheck?: Attribute<boolean>;
+            src?: Attribute<string>;
+            srcset?: Attribute<string>;
+            srcDoc?: Attribute<string>;
+            srcLang?: Attribute<string>;
+            srcSet?: Attribute<string>;
+            start?: Attribute<number>;
+            step?: Attribute<number | string>;
+            style?: Attribute<string | Partial<CSSStyleDeclaration>>;
+            summary?: Attribute<string>;
+            tabIndex?: Attribute<number>;
+            target?: Attribute<string>;
+            title?: Attribute<string>;
+            type?: Attribute<string>;
+            useMap?: Attribute<string>;
+            value?: Attribute<string | string[] | number>;
+            volume?: Attribute<string | number>;
+            width?: Attribute<number | string>;
+            wmode?: Attribute<string>;
+            wrap?: Attribute<string>;
+
+            // RDFa Attributes
+            about?: Attribute<string>;
+            datatype?: Attribute<string>;
+            inlist?: Attribute<boolean>;
+            prefix?: Attribute<string>;
+            property?: Attribute<string>;
+            resource?: Attribute<string>;
+            typeof?: Attribute<string>;
+            vocab?: Attribute<string>;
+
+            // Microdata Attributes
+            itemProp?: Attribute<string>;
+            itemScope?: Attribute<boolean>;
+            itemType?: Attribute<string>;
+            itemID?: Attribute<string>;
+            itemRef?: Attribute<string>;
+        }
+        type IntrinsicElementsHTML = { [TKey in keyof HTMLElementTagNameMap]?: HTMLAttributes };
+
+        type IntrinsicElements = IntrinsicElementsHTML;
     }
 }

@@ -1,4 +1,4 @@
-import { Property } from "./emitter";
+import { Property } from "./component";
 
 export type ContextValue = string|number|Property<string>|Property<number>;
 
