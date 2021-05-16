@@ -12,7 +12,7 @@ const a = new TextControl('2');
 const b = new TextControl('3');
 const c = a.flatMap(a => b.map(b => parseInt(a) + parseInt(b)));
 
-const tasks = bindList<string>();
+const tasks = bindList<string>(['Buy milk']);
 const task = new TextControl('');
 
 function addTask(e: Event) {

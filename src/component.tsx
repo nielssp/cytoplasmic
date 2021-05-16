@@ -250,7 +250,7 @@ export function loop<T>(list: ListProperty<T>|Property<T[]>, body: (value: Prope
     let elements: HTMLElement[] = [marker];
     if (list instanceof ListProperty) {
         list.items.forEach(item => {
-            flatten(body(item)).forEach(element => elements.push(element));
+            flatten(body(item)).forEach(element => elements.splice(-1, 0, element));
         });
         list.onInsert.observe(({index, item}) => {
             // TODO: index
@@ -260,7 +260,7 @@ export function loop<T>(list: ListProperty<T>|Property<T[]>, body: (value: Prope
                     marker.parentElement.insertBefore(e, marker);
                 }
             }
-            element.forEach(element => elements.push(element));
+            element.forEach(element => elements.splice(-1, 0, element));
         });
     } else {
         // TODO
