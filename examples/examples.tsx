@@ -64,12 +64,12 @@ const component = <div class='stack-column padding spacing'>
         {c}
     </div>
     <div class='stack-row align-center spacing'>
-        <div>Todo:</div>
+        <div>{_n('{n} task', '{n} tasks', {n: tasks.length})}</div>
         <button disabled={selection.undefined} onClick={removeTask}>Remove</button>
     </div>
     <div class='list' role='listbox'>
         {loop(tasks, task => (
-            <div role='option' aria-selected={selection.map(s => s === task ? 'true' : 'false')}
+            <div role='option' tabIndex={0} aria-selected={selection.map(s => s === task ? 'true' : 'false')}
                 onClick={() => selection.value = task}>
                 {task}
             </div>
@@ -80,7 +80,7 @@ const component = <div class='stack-column padding spacing'>
             <label>Add task</label>
             <input type='text'/>
         </Field>
-        <button type='submit'>Add</button>
+        <button type='submit' disabled={task.not}>Add</button>
     </form>
 </div>;
 
