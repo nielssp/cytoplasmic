@@ -66,6 +66,36 @@ export type Observer<T> = (event: T) => any;
 
 export type PropertyObserver<T> = (newValue: T, oldValue: T) => any;
 
+export class Emitter<T> {
+    private observers: Observer<T>[] = [];
+
+    emit(event: T): void {
+        for (let observer of this.observers) {
+            if (observer(event) === false) {
+                return;
+            }
+        }
+    }
+
+    observe(observer: Observer<T>): () => void {
+        this.observers.push(observer);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: Observer<T>): void {
+        this.observers = this.observers.filter(o => o !== observer);
+    }
+
+    next(): Promise<T> {
+        return new Promise(resolve => {
+            const unobserve = this.observe(x => {
+                unobserve();
+                resolve(x);
+            });
+        });
+    }
+}
+
 export class Property<T> {
     private observers: PropertyObserver<T>[] = [];
     private binding: Property<T>[] = [this];
@@ -187,16 +217,55 @@ export function bind<T>(defaultValue: Property<T>|T, binding?: Property<T>|T): P
 }
 
 export class ListProperty<T> {
+    private _items: Property<T>[] = [];
     readonly length = bind(0);
-    // TODO
+    readonly onInsert = new Emitter<{index: number, item: Property<T>}>();
+
+    constructor(
+        initialItems: T[],
+    ) {
+        this._items = initialItems.map(item => bind(item));
+    }
+
+    get items() {
+        return this._items;
+    }
+    
+    push(item: T): void {
+        const index = this.length.value;
+        const prop = bind(item);
+        this._items.push(prop);
+        this.length.value++;
+        this.onInsert.emit({index, item: prop});
+    }
 }
 
-export function bindList<T>(initialElements: T[] = []): ListProperty<T> {
-    throw 'not implemented';
+export function bindList<T>(initialItems: T[] = []): ListProperty<T> {
+    return new ListProperty(initialItems);
 }
 
-export function loop<T>(elements: ListProperty<T>|Property<T[]>, body: (value: Property<T>) => JSX.Element): JSX.Element {
-    throw 'not implemented';
+export function loop<T>(list: ListProperty<T>|Property<T[]>, body: (value: Property<T>) => JSX.Element): JSX.Element {
+    const marker = document.createElement('span');
+    marker.style.display = 'none';
+    let elements: HTMLElement[] = [marker];
+    if (list instanceof ListProperty) {
+        list.items.forEach(item => {
+            flatten(body(item)).forEach(element => elements.push(element));
+        });
+        list.onInsert.observe(({index, item}) => {
+            // TODO: index
+            const element = flatten(body(item));
+            if (marker.parentElement) {
+                for (let e of element) {
+                    marker.parentElement.insertBefore(e, marker);
+                }
+            }
+            element.forEach(element => elements.push(element));
+        });
+    } else {
+        // TODO
+    }
+    return elements;
 }
 
 export function flatten(elements: JSX.Element[]|JSX.Element): HTMLElement[] {
