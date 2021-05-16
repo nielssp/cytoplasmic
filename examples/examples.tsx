@@ -1,4 +1,4 @@
-import { createElement, bind, mount, Cond, bindList, loop } from "../src/component";
+import { createElement, bind, mount, Hide, bindList, loop, Property } from "../src/component";
 import { TextControl, Field } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -15,10 +15,24 @@ const c = a.flatMap(a => b.map(b => parseInt(a) + parseInt(b)));
 const tasks = bindList<string>(['Buy milk']);
 const task = new TextControl('');
 
+const selection = bind<Property<string>|undefined>(undefined);
+
 function addTask(e: Event) {
     e.preventDefault();
     tasks.push(task.value);
     task.value = '';
+}
+
+function removeTask() {
+    if (selection.value != undefined) {
+        const i = tasks.items.indexOf(selection.value);
+        tasks.remove(i);
+        if (tasks.length.value) {
+            selection.value = tasks.items[Math.max(0, i - 1)];
+        } else {
+            selection.value = undefined;
+        }
+    }
 }
 
 const component = <div class='stack-column padding spacing'>
@@ -33,11 +47,11 @@ const component = <div class='stack-column padding spacing'>
         <button onClick={() => {n.value++;}}>Button</button>
         <div>{_n('Clicked {n} time', 'Clicked {n} times', {n})}</div>
     </div>
-    <Cond when={n.map(n => n > 10)}>
+    <Hide unless={n.map(n => n > 10)}>
         <div>
             Clicked more than 10 times
         </div>
-    </Cond>
+    </Hide>
     <div class='stack-row align-center'>
         <Field control={a}>
             <input type='text'/>
@@ -49,10 +63,16 @@ const component = <div class='stack-column padding spacing'>
         =
         {c}
     </div>
-    <div>Todo:</div>
+    <div class='stack-row align-center spacing'>
+        <div>Todo:</div>
+        <button disabled={selection.undefined} onClick={removeTask}>Remove</button>
+    </div>
     <div class='list' role='listbox'>
         {loop(tasks, task => (
-            <div role='option'>{task}</div>
+            <div role='option' aria-selected={selection.map(s => s === task ? 'true' : 'false')}
+                onClick={() => selection.value = task}>
+                {task}
+            </div>
         ))}
     </div>
     <form class='stack-row spacing align-center' onSubmit={addTask}>

@@ -171,6 +171,14 @@ export class Property<T> {
         return this.map(x => !x);
     }
 
+    get defined(): Property<boolean> {
+        return this.map(x => x != undefined);
+    }
+
+    get undefined(): Property<boolean> {
+        return this.map(x => x == undefined);
+    }
+
     and<T2>(other: Property<T2>): Property<T2|false> {
         const prop = new Property(!!this.value && other.value);
         let unobserver = other.observe(value => {
@@ -220,17 +228,19 @@ export class ListProperty<T> {
     private _items: Property<T>[] = [];
     readonly length = bind(0);
     readonly onInsert = new Emitter<{index: number, item: Property<T>}>();
+    readonly onRemove = new Emitter<number>();
 
     constructor(
         initialItems: T[],
     ) {
         this._items = initialItems.map(item => bind(item));
+        this.length.value = this._items.length;
     }
 
     get items() {
         return this._items;
     }
-    
+
     push(item: T): void {
         const index = this.length.value;
         const prop = bind(item);
@@ -238,13 +248,24 @@ export class ListProperty<T> {
         this.length.value++;
         this.onInsert.emit({index, item: prop});
     }
+
+    remove(index: number): void {
+        if (index >= 0 && index < this._items.length) {
+            this._items.splice(index, 1);
+            this.length.value--;
+            this.onRemove.emit(index);
+        }
+    }
 }
 
 export function bindList<T>(initialItems: T[] = []): ListProperty<T> {
     return new ListProperty(initialItems);
 }
 
-export function loop<T>(list: ListProperty<T>|Property<T[]>, body: (value: Property<T>) => JSX.Element): JSX.Element {
+export function loop<T>(
+    list: ListProperty<T>|Property<T[]>,
+    body: (value: Property<T>) => JSX.Element
+): JSX.Element {
     const marker = document.createElement('span');
     marker.style.display = 'none';
     let elements: HTMLElement[] = [marker];
@@ -261,6 +282,17 @@ export function loop<T>(list: ListProperty<T>|Property<T[]>, body: (value: Prope
                 }
             }
             element.forEach(element => elements.splice(-1, 0, element));
+        });
+        list.onRemove.observe(index => {
+            if (marker.parentElement) {
+                const markerIndex = Array.prototype.indexOf.call(marker.parentElement.children, marker);
+                console.log(markerIndex, index);
+                if (markerIndex >= index) {
+                    const elementIndex = markerIndex - (list.length.value + 1 - index);
+                    marker.parentElement.removeChild(marker.parentElement.children[elementIndex]);
+                }
+            }
+            elements.splice(index + 1, 0);
         });
     } else {
         // TODO
@@ -330,7 +362,7 @@ export function ifDefined<T>(property: Property<T|undefined>, f: ((value: T) => 
     return elements;
 }
 
-export function Cond(props: {
+export function Hide(props: {
     children: JSX.Element[]|JSX.Element
     when: Property<any>,
 } | {
@@ -340,12 +372,12 @@ export function Cond(props: {
     const children = flatten(props.children);
     if ('when' in props) {
         props.when.getAndObserve(condition => {
-            const display = condition ? '' : 'none';
+            const display = condition ? 'none' : '';
             children.forEach(child => child.style.display = display);
         });
     } else {
         props.unless.getAndObserve(condition => {
-            const display = condition ? 'none' : '';
+            const display = condition ? '' : 'none';
             children.forEach(child => child.style.display = display);
         });
     }
