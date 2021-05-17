@@ -210,7 +210,9 @@ export class Property<T> {
     }
 }
 
-export function bind<T>(defaultValue: Property<T>|T, binding?: Property<T>|T): Property<T> {
+export type Input<T> = Property<T>|T;
+
+export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): Property<T> {
     if (typeof binding === 'undefined') {
         if (defaultValue instanceof Property) {
             return defaultValue;
@@ -295,7 +297,47 @@ export function loop<T>(
             elements.splice(index + 1, 0);
         });
     } else {
-        // TODO
+        const properties = list.value.map(v => bind(v));
+        properties.forEach(property => {
+            flatten(body(property)).forEach(element => elements.splice(-1, 0, element));
+        });
+        list.observe(xs => {
+            if (xs.length < properties.length) {
+                if (marker.parentElement) {
+                    const markerIndex = Array.prototype.indexOf.call(marker.parentElement.children, marker);
+                    for (let i = 0; i < properties.length - xs.length; i++) {
+                        const elementIndex = markerIndex - 1 - i;
+                        if (elementIndex >= 0) {
+                            marker.parentElement.removeChild(marker.parentElement.children[elementIndex]);
+                        }
+                    }
+                }
+                properties.splice(xs.length);
+                elements.splice(xs.length, elements.length, marker);
+                for (let i = 0; i < properties.length; i++) {
+                    properties[i].value = xs[i];
+                }
+            } else if (xs.length > properties.length) {
+                for (let i = 0; i < properties.length; i++) {
+                    properties[i].value = xs[i];
+                }
+                let newElements: HTMLElement[] = [];
+                for (let i = properties.length; i < xs.length; i++) {
+                    properties.push(bind(xs[i]));
+                    newElements = flatten(body(properties[i]));
+                }
+                if (marker.parentElement) {
+                    for (let element of newElements) {
+                        marker.parentElement.insertBefore(element, marker);
+                    }
+                }
+                newElements.forEach(element => elements.splice(-1, 0, element));
+            } else {
+                for (let i = 0; i < properties.length; i++) {
+                    properties[i].value = xs[i];
+                }
+            }
+        });
     }
     return elements;
 }
