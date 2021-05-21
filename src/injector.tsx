@@ -43,9 +43,9 @@ export class Injector<TContext> {
         }
         if (!this.cache.hasOwnProperty(name)) {
             const provider = this.providers[name];
-            if (isValue(provider)) {
+            if (isValue<TContext, TContext[TKey]>(provider)) {
                 return provider.value;
-            } else if (!isClass(provider)) {
+            } else if (!isClass<TContext, TContext[TKey]>(provider)) {
                 throw new Error('Unexpected provider type');
             }
             if (provider.class.deps.length) {
