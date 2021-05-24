@@ -251,11 +251,21 @@ export class ListProperty<T> {
         this.onInsert.emit({index, item: prop});
     }
 
+    pushAll(items: T[]): void {
+        items.forEach(item => this.push(item));
+    }
+
     remove(index: number): void {
         if (index >= 0 && index < this._items.length) {
             this._items.splice(index, 1);
             this.length.value--;
             this.onRemove.emit(index);
+        }
+    }
+
+    clear(): void {
+        while (this._items.length) {
+            this.remove(this._items.length - 1);
         }
     }
 }
@@ -288,7 +298,6 @@ export function loop<T>(
         list.onRemove.observe(index => {
             if (marker.parentElement) {
                 const markerIndex = Array.prototype.indexOf.call(marker.parentElement.children, marker);
-                console.log(markerIndex, index);
                 if (markerIndex >= index) {
                     const elementIndex = markerIndex - (list.length.value + 1 - index);
                     marker.parentElement.removeChild(marker.parentElement.children[elementIndex]);
@@ -324,7 +333,7 @@ export function loop<T>(
                 let newElements: HTMLElement[] = [];
                 for (let i = properties.length; i < xs.length; i++) {
                     properties.push(bind(xs[i]));
-                    newElements = flatten(body(properties[i]));
+                    flatten(body(properties[i])).forEach(e => newElements.push(e));
                 }
                 if (marker.parentElement) {
                     for (let element of newElements) {
