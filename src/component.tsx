@@ -380,28 +380,16 @@ export function map<T>(property: Property<T>, f: ((value: T) => JSX.Element[]|JS
     return elements;
 }
 
-export function ifDefined<T>(property: Property<T|undefined>, f: ((value: T) => JSX.Element)) {
-    const marker = document.createElement('span');
-    marker.style.display = 'none';
-    let elements: HTMLElement[] = [marker];
-    property.getAndObserve(value => {
-        for (let i = 1; i < elements.length; i++) {
-            const element = elements[i];
-            if (element.parentElement) {
-                element.parentElement.removeChild(element);
-            }
-        }
-        elements.splice(1, elements.length);
-        if (value != undefined) {
-            flatten(f(value)).forEach(element => {
-                if (marker.parentElement) {
-                    marker.parentElement.insertBefore(element, marker);
-                }
-                elements.push(element);
-            });
-        }
-    });
-    return elements;
+export function ifDefined<T>(property: Property<T|undefined>, f: ((value: T) => JSX.Element[]|JSX.Element)) {
+    return map(property, value => value == undefined ? [] : f(value));
+}
+
+export function ifTrue<T>(property: Property<T>, f: () => JSX.Element[]|JSX.Element) {
+    return map(property, value => value ? f() : []);
+}
+
+export function ifFalse<T>(property: Property<T>, f: () => JSX.Element[]|JSX.Element) {
+    return map(property, value => value ? [] : f());
 }
 
 export function Hide(props: {
@@ -424,6 +412,31 @@ export function Hide(props: {
         });
     }
     return children;
+}
+
+export interface Model {
+    readonly active: Property<boolean>;
+    init?(): void;
+    destroy?(): void;
+}
+
+export function Active(props: {
+    children: JSX.Element[]|JSX.Element,
+    model: Model,
+}) {
+    const visible = bind(false);
+    props.model.active.getAndObserve(active => {
+        if (active === visible.value) {
+            return;
+        }
+        visible.value = active;
+        if (active) {
+            props.model.init && props.model.init();
+        } else {
+            props.model.destroy && props.model.destroy();
+        }
+    });
+    return ifTrue(visible, () => props.children);
 }
 
 export function Style(props: {
