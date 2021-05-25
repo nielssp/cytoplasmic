@@ -20,7 +20,7 @@ export abstract class Control<T> extends Property<T> {
         super(value);
     }
 
-    abstract add(element: HTMLElement): void;
+    abstract add(element: Element): void;
 }
 
 export class CheckboxControl extends Control<boolean> {
@@ -32,7 +32,7 @@ export class CheckboxControl extends Control<boolean> {
         super(value, id);
     }
 
-    add(element: HTMLElement) {
+    add(element: Element) {
         switch (element.tagName) {
             case 'LABEL':
                 (element as HTMLLabelElement).htmlFor = this.id;
@@ -88,7 +88,7 @@ export class TextControl extends Control<string> {
         super(value, id);
     }
 
-    add(element: HTMLElement) {
+    add(element: Element) {
         switch (element.tagName) {
             case 'LABEL':
                 (element as HTMLLabelElement).htmlFor = this.id;
@@ -173,6 +173,12 @@ export function Field(props: {
     if ('value' in props) {
         bind('', props.value).bind(control);
     }
-    children.forEach(child => control.add(child));
+    children.forEach(child => {
+        control.add(child);
+        const nested = child.querySelectorAll('*');
+        for (let i = 0; i < nested.length; i++) {
+            control.add(nested[i]);
+        }
+    });
     return children;
 }
