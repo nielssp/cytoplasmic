@@ -35,6 +35,28 @@ export function createElement<TProps extends {}>(name: string|((props: TProps) =
                         const useCapture = prop !== finalName;
                         const eventName = finalName.toLowerCase().substring(2);
                         e.addEventListener(eventName, value as EventListenerOrEventListenerObject, useCapture);
+                    } else if (prop === 'style') {
+                        if (value instanceof Property) {
+                            value.getAndObserve((value: string|number|boolean|object) => {
+                                if (typeof value === 'object') {
+                                    for (let key in value) {
+                                        if (value.hasOwnProperty(key)) {
+                                            e.style[key as any] = (value as any)[key as any] as any;
+                                        }
+                                    }
+                                } else {
+                                    e.setAttribute('style', '' + value);
+                                }
+                            });
+                        } else if (typeof value === 'object') {
+                            for (let key in value) {
+                                if (value.hasOwnProperty(key)) {
+                                    e.style[key as any] = (value as any)[key as any] as any;
+                                }
+                            }
+                        } else {
+                            e.setAttribute('style', '' + value);
+                        }
                     } else if (value instanceof Property) {
                         value.getAndObserve((value: string|number|boolean) => {
                             if (value === true) {
@@ -117,14 +139,18 @@ export class Property<T> {
         }
     }
 
-    bind(prop: Property<T>) {
-        if (prop.binding === this.binding) {
-            return;
-        }
-        prop.value = this.value;
-        for (let boundProp of prop.binding) {
-            this.binding.push(boundProp);
-            boundProp.binding = this.binding;
+    bind(prop: Input<T>) {
+        if (prop instanceof Property) {
+            if (prop.binding === this.binding) {
+                return;
+            }
+            prop.value = this.value;
+            for (let boundProp of prop.binding) {
+                this.binding.push(boundProp);
+                boundProp.binding = this.binding;
+            }
+        } else {
+            this.value = prop;
         }
     }
 
