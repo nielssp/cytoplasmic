@@ -1,84 +1,101 @@
 
-function appendChildren(element: HTMLElement, children: JSX.ElementChild[]): void {
+function appendChildren(element: HTMLElement, children: JSX.ElementChild[], context: JSX.Context): void {
     children.forEach(child => {
         if (typeof child === 'string') {
             element.appendChild(document.createTextNode(child));
         } else if (typeof child === 'number') {
             element.appendChild(document.createTextNode('' + child));
         } else if (Array.isArray(child)) {
-            appendChildren(element, child);
+            appendChildren(element, child, context);
         } else if (child instanceof Property) {
             const text = document.createTextNode('' + child.value);
-            child.observe((value: string|number) => {
+            const unobserve = child.observe((value: string|number) => {
                 text.textContent = '' + value;
             });
+            context.onDestroy(() => unobserve());
             element.appendChild(text);
-        } else if (child instanceof Element) {
+        } else if (child instanceof Node) {
             element.appendChild(child);
+        } else {
+            apply(child, context).forEach(child => {
+                element.appendChild(child);
+            });
         }
     });
 }
 
 type ElementAttributes = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject>;
 
-export function createElement(name: string, properties: ElementAttributes, ... children: JSX.ElementChild[]): HTMLElement;
-export function createElement<T extends HTMLElement, TProps extends {}>(name: (props: TProps) => T, properties: TProps, ... children: JSX.ElementChild[]): T;
-export function createElement<TProps extends {}>(name: string|((props: TProps) => HTMLElement), properties: TProps & ElementAttributes, ... children: JSX.ElementChild[]): HTMLElement {
+export function createElement(name: string, properties: ElementAttributes, ... children: JSX.ElementChild[]): JSX.Element;
+export function createElement<T extends JSX.Element, TProps extends {}>(name: (props: TProps, context: JSX.Context) => T, properties: TProps, ... children: JSX.ElementChild[]): T;
+export function createElement<TProps extends {}>(name: string|((props: TProps, context: JSX.Context) => JSX.Element), properties: TProps & ElementAttributes, ... children: JSX.ElementChild[]): JSX.Element {
     if (typeof name === 'string') {
-        const e = document.createElement(name);
-        if (properties) {
-            for (let prop in properties) {
-                if (properties.hasOwnProperty(prop)) {
-                    const value = properties[prop];
-                    if (prop.startsWith('on')) {
-                        const finalName = prop.replace(/Capture$/, '');
-                        const useCapture = prop !== finalName;
-                        const eventName = finalName.toLowerCase().substring(2);
-                        e.addEventListener(eventName, value as EventListenerOrEventListenerObject, useCapture);
-                    } else if (prop === 'style') {
-                        if (value instanceof Property) {
-                            value.getAndObserve((value: string|number|boolean|object) => {
-                                if (typeof value === 'object') {
-                                    for (let key in value) {
-                                        if (value.hasOwnProperty(key)) {
-                                            e.style[key as any] = (value as any)[key as any] as any;
-                                        }
-                                    }
-                                } else {
-                                    e.setAttribute('style', '' + value);
-                                }
+        return context => {
+            const e = document.createElement(name);
+            if (properties) {
+                for (let prop in properties) {
+                    if (properties.hasOwnProperty(prop)) {
+                        const value = properties[prop];
+                        if (prop.startsWith('on')) {
+                            const finalName = prop.replace(/Capture$/, '');
+                            const useCapture = prop !== finalName;
+                            const eventName = finalName.toLowerCase().substring(2);
+                            e.addEventListener(eventName, value as EventListenerOrEventListenerObject, useCapture);
+                            context.onDestroy(() => {
+                                e.removeEventListener(eventName, value as EventListenerOrEventListenerObject);
                             });
-                        } else if (typeof value === 'object') {
-                            for (let key in value) {
-                                if (value.hasOwnProperty(key)) {
-                                    e.style[key as any] = (value as any)[key as any] as any;
+                        } else if (prop === 'style') {
+                            if (value instanceof Property) {
+                                context.onDestroy(value.getAndObserve((value: string|number|boolean|object) => {
+                                    if (typeof value === 'object') {
+                                        for (let key in value) {
+                                            if (value.hasOwnProperty(key)) {
+                                                e.style[key as any] = (value as any)[key as any] as any;
+                                            }
+                                        }
+                                    } else {
+                                        e.setAttribute('style', '' + value);
+                                    }
+                                }));
+                            } else if (typeof value === 'object') {
+                                for (let key in value) {
+                                    if (value.hasOwnProperty(key)) {
+                                        e.style[key as any] = (value as any)[key as any] as any;
+                                    }
                                 }
-                            }
-                        } else {
-                            e.setAttribute('style', '' + value);
-                        }
-                    } else if (value instanceof Property) {
-                        value.getAndObserve((value: string|number|boolean) => {
-                            if (value === true) {
-                                e.setAttribute(prop, prop);
-                            } else if (value || value === 0) {
-                                e.setAttribute(prop, '' + value)
                             } else {
-                                e.removeAttribute(prop);
+                                e.setAttribute('style', '' + value);
                             }
-                        });
-                    } else if (value === true) {
-                        e.setAttribute(prop, prop);
-                    } else if (value || value === 0) {
-                        e.setAttribute(prop, '' + value);
+                        } else if (value instanceof Property) {
+                            const observer = (value: string|number|boolean) => {
+                                if (value === true) {
+                                    e.setAttribute(prop, prop);
+                                } else if (value || value === 0) {
+                                    e.setAttribute(prop, '' + value)
+                                } else {
+                                    e.removeAttribute(prop);
+                                }
+                            };
+                            value.getAndObserve(observer);
+                            context.onDestroy(() => {
+                                value.unobserve(observer);
+                            });
+                        } else if (value === true) {
+                            e.setAttribute(prop, prop);
+                        } else if (value || value === 0) {
+                            e.setAttribute(prop, '' + value);
+                        }
                     }
                 }
             }
-        }
-        appendChildren(e, children);
-        return e;
+            appendChildren(e, children, context);
+            return e;
+        };
     } else {
-        return name({... properties, children});
+        if (children.length === 1) {
+            return context => name({... properties, children: children[0]}, context)(context);
+        }
+        return context => name({... properties, children}, context)(context);
     }
 }
 
@@ -86,7 +103,9 @@ export type PropertyValue<T> = T extends Property<infer TValue> ? TValue : never
 
 export type Observer<T> = (event: T) => any;
 
-export type PropertyObserver<T> = (newValue: T, oldValue: T) => any;
+export type PropertyObserver<T> = (newValue: T) => any;
+
+let numObservers = 0;
 
 export class Emitter<T> {
     private observers: Observer<T>[] = [];
@@ -118,79 +137,22 @@ export class Emitter<T> {
     }
 }
 
-export class Property<T> {
-    private observers: PropertyObserver<T>[] = [];
-    private binding: Property<T>[] = [this];
-
-    constructor(protected _value: T) {
-    }
-
-    get value(): T {
-        return this._value;
-    }
-
-    set value(value: T) {
-        for (let prop of this.binding) {
-            const old = prop._value;
-            prop._value = value;
-            for (let observer of prop.observers) {
-                observer(value, old);
-            }
-        }
-    }
-
-    bind(prop: Input<T>) {
-        if (prop instanceof Property) {
-            if (prop.binding === this.binding) {
-                return;
-            }
-            prop.value = this.value;
-            for (let boundProp of prop.binding) {
-                this.binding.push(boundProp);
-                boundProp.binding = this.binding;
-            }
-        } else {
-            this.value = prop;
-        }
-    }
+export abstract class Property<T> {
+    abstract get value(): T;
+    abstract observe(observer: PropertyObserver<T>): () => void;
+    abstract unobserve(observer: PropertyObserver<T>): void;
 
     getAndObserve(observer: PropertyObserver<T>): () => void {
-        observer(this._value, this._value);
+        observer(this.value);
         return this.observe(observer);
     }
 
-    observe(observer: PropertyObserver<T>): () => void {
-        this.observers.push(observer);
-        return () => this.unobserve(observer);
-    }
-
-    unobserve(observer: PropertyObserver<T>): void {
-        this.observers = this.observers.filter(o => o !== observer);
-    }
-
     map<T2>(f: (value: T) => T2): Property<T2> {
-        const prop = new Property(f(this._value));
-        this.observe(value => {
-            prop.value = f(value);
-        });
-        return prop;
+        return new MappingProperty(this, f);
     }
 
     flatMap<T2>(f: (value: T) => Property<T2>): Property<T2> {
-        let other = f(this._value);
-        const prop = new Property(other.value);
-        let unobserver = other.observe(value => {
-            prop.value = value;
-        });
-        this.observe(value => {
-            unobserver();
-            other = f(value);
-            prop.value = other.value;
-            unobserver = other.observe(value => {
-                prop.value = value;
-            });
-        });
-        return prop;
+        return new FlatMappingProperty(this, f);
     }
 
     get not(): Property<boolean> {
@@ -206,49 +168,150 @@ export class Property<T> {
     }
 
     and<T2>(other: Property<T2>): Property<T2|false> {
-        const prop = new Property(!!this.value && other.value);
-        let unobserver = other.observe(value => {
-            prop.value = value;
+        return this.flatMap(value => {
+            if (value) {
+                return other as Property<T2|false>;
+            }
+            return bind(false);
         });
-        this.observe(value => {
-            unobserver();
-            prop.value = !!value && other.value;
-            unobserver = other.observe(value => {
-                prop.value = value;
-            });
-        });
-        return prop;
     }
 
     or<T2>(other: Property<T2>): Property<T|T2> {
-        const prop = new Property(this.value || other.value);
-        let unobserver = other.observe(value => {
-            prop.value = value;
+        return this.flatMap(value => {
+            if (value) {
+                return this as Property<T|T2>;
+            }
+            return other as Property<T|T2>;
         });
-        this.observe(value => {
-            unobserver();
-            prop.value = value || other.value;
-            unobserver = other.observe(value => {
-                prop.value = value;
-            });
-        });
-        return prop;
+    }
+}
+
+export class MappingProperty<TIn, TOut> extends Property<TOut> {
+    private observers: [PropertyObserver<TOut>, PropertyObserver<TIn>][] = [];
+
+    constructor(protected source: Property<TIn>, protected f: (value: TIn) => TOut) {
+        super();
+    }
+
+    get value(): TOut {
+        return this.f(this.source.value);
+    }
+
+    observe(observer: PropertyObserver<TOut>): () => void {
+        const sourceObserver = (newValue: TIn) => {
+            observer(this.f(newValue));
+        };
+        this.source.observe(sourceObserver);
+        this.observers.push([observer, sourceObserver]);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: PropertyObserver<TOut>): void {
+        const i = this.observers.findIndex(([o, _]) => o === observer);
+        if (i >= 0) {
+            this.source.unobserve(this.observers[i][1]);
+            this.observers.splice(i, 1);
+        }
+    }
+}
+
+interface FlatMapObserver<TIn, TOut> {
+    outputObserver: PropertyObserver<TOut>;
+    inputObserver: PropertyObserver<TIn>;
+    intermediate: Property<TOut>;
+}
+
+export class FlatMappingProperty<TIn, TOut> extends Property<TOut> {
+    private observers: FlatMapObserver<TIn, TOut>[] = [];
+
+    constructor(protected source: Property<TIn>, protected f: (value: TIn) => Property<TOut>) {
+        super();
+    }
+
+    get value(): TOut {
+        return this.f(this.source.value).value;
+    }
+
+    observe(observer: PropertyObserver<TOut>): () => void {
+        const obj: FlatMapObserver<TIn, TOut> = {
+            outputObserver: observer,
+            intermediate: this.f(this.source.value),
+            inputObserver: () => {},
+        };
+        obj.intermediate.observe(observer);
+        obj.inputObserver = (newValue: TIn) => {
+            obj.intermediate.unobserve(observer);
+            obj.intermediate = this.f(newValue);
+            obj.intermediate.observe(observer);
+            observer(obj.intermediate.value);
+        };
+        this.source.observe(obj.inputObserver);
+        this.observers.push(obj);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: PropertyObserver<TOut>): void {
+        const i = this.observers.findIndex(({outputObserver}) => outputObserver === observer);
+        if (i >= 0) {
+            this.observers[i].intermediate.unobserve(this.observers[i].outputObserver);
+            this.source.unobserve(this.observers[i].inputObserver);
+            this.observers.splice(i, 1);
+        }
+    }
+}
+
+export class ValueProperty<T> extends Property<T> {
+    private observers: PropertyObserver<T>[] = [];
+
+    constructor(protected _value: T) {
+        super();
+    }
+
+    get value(): T {
+        return this._value;
+    }
+
+    set value(value: T) {
+        this._value = value;
+        for (let observer of this.observers) {
+            observer(value);
+        }
+    }
+
+    observe(observer: PropertyObserver<T>): () => void {
+        this.observers.push(observer);
+        numObservers++;
+        console.log({numObservers, observer});
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: PropertyObserver<T>): void {
+        const i = this.observers.findIndex(o => o === observer);
+        if (i >= 0) {
+            this.observers.splice(i, 1);
+            numObservers--;
+            console.log({numObservers});
+        }
     }
 }
 
 export type Input<T> = Property<T>|T;
 
-export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): Property<T> {
+export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): ValueProperty<T> {
     if (typeof binding === 'undefined') {
-        if (defaultValue instanceof Property) {
+        if (defaultValue instanceof ValueProperty) {
             return defaultValue;
+        } else if (defaultValue instanceof Property) {
+            return new ValueProperty(defaultValue.value);
         } else {
-            return new Property(defaultValue);
+            return new ValueProperty(defaultValue);
         }
-    } else if (binding instanceof Property) {
+    } else if (binding instanceof ValueProperty) {
         return binding;
+    } else if (binding instanceof Property) {
+        return new ValueProperty(binding.value);
     } else {
-        return new Property(binding);
+        return new ValueProperty(binding);
     }
 }
 
@@ -300,6 +363,66 @@ export function bindList<T>(initialItems: T[] = []): ListProperty<T> {
     return new ListProperty(initialItems);
 }
 
+export function For<T>({each, children}: {
+    each: ListProperty<T>|Property<T[]>,
+    children: (value: Property<T>) => JSX.Element
+}, context: JSX.Context): JSX.Element {
+    const marker = document.createComment('<For>');
+    let items: [Node[], Context][] = [];
+    if (each instanceof ListProperty) {
+        context.onInit(() => {
+            each.items.forEach(item => {
+                const nodes: Node[] = [];
+                const subcontext = new Context();
+                apply(children(item), subcontext).forEach(node => {
+                    if (!marker.parentElement) {
+                        return;
+                    }
+                    nodes.push(node);
+                    marker.parentElement.insertBefore(node, marker);
+                });
+                items.push([nodes, subcontext]);
+                subcontext.init();
+            });
+            context.onDestroy(each.onInsert.observe(({index, item}) => {
+                if (index >= items.length) {
+                    const nodes: Node[] = [];
+                    const subcontext = new Context();
+                    apply(children(item), subcontext).forEach(node => {
+                        if (!marker.parentElement) {
+                            return;
+                        }
+                        nodes.push(node);
+                        marker.parentElement.insertBefore(node, marker);
+                    });
+                    items.push([nodes, subcontext]);
+                    subcontext.init();
+                } else {
+                    // TODO
+                }
+            }));
+            context.onDestroy(each.onRemove.observe(index => {
+                items.splice(index, 1).forEach(([nodes, subcontext]) => {
+                    nodes.forEach(node => {
+                        if (node.parentElement) {
+                            node.parentElement.removeChild(node);
+                        }
+                    });
+                    subcontext.destroy();
+                });
+            }));
+            context.onDestroy(() => {
+                items.forEach(([_, subcontext]) => {
+                    subcontext.destroy();
+                });
+            });
+        });
+    } else {
+    }
+    return () => marker;
+}
+
+/*
 export function loop<T>(
     list: ListProperty<T>|Property<T[]>,
     body: (value: Property<T>) => JSX.Element
@@ -376,103 +499,119 @@ export function loop<T>(
     }
     return elements;
 }
+*/
 
-export function flatten(elements: JSX.Element[]|JSX.Element): HTMLElement[] {
-    const result = [];
+export function flatten(elements: JSX.Element[]|JSX.Element): JSX.Element {
+    if (Array.isArray(elements)) {
+        return context => {
+            const result: Node[] = [];
+            elements.forEach(element => {
+                const output = element(context);
+                if (Array.isArray(output)) {
+                    output.forEach(e => result.push(e));
+                } else {
+                    result.push(output);
+                }
+            });
+            return result;
+        };
+    }
+    return elements;
+}
+
+export function apply(elements: JSX.Element[]|JSX.Element, context: JSX.Context): Node[] {
+    const result: Node[] = [];
     if (Array.isArray(elements)) {
         elements.forEach(element => {
-            if (Array.isArray(element)) {
-                element.forEach(e => result.push(e));
+            const output = element(context);
+            if (Array.isArray(output)) {
+                output.forEach(e => result.push(e));
             } else {
-                result.push(element);
+                result.push(output);
             }
         });
     } else {
-        result.push(elements);
+        const output = elements(context);
+        if (Array.isArray(output)) {
+            output.forEach(e => result.push(e));
+        } else {
+            result.push(output);
+        }
     }
     return result;
 }
 
-export function map<T>(property: Property<T>, f: ((value: T) => JSX.Element[]|JSX.Element)): JSX.Element {
-    const marker = document.createElement('span');
-    marker.style.display = 'none';
-    let elements: HTMLElement[] = [marker];
-    property.getAndObserve(value => {
-        for (let i = 1; i < elements.length; i++) {
-            const element = elements[i];
-            if (element.parentElement) {
-                element.parentElement.removeChild(element);
-            }
+class Context implements JSX.Context {
+    private initialized = false;
+    private destroyed = false;
+    private initializers: (() => void)[] = [];
+    private destructors: (() => void)[] = [];
+
+    onInit(initializer: () => void): void {
+        this.initializers.push(initializer);
+    }
+
+    onDestroy(destructor: () => void): void {
+        this.destructors.push(destructor);
+    }
+
+    init() {
+        if (!this.initialized) {
+            this.initializers.forEach(f => f());
+            this.initialized = true;
         }
-        elements.splice(1, elements.length);
-        flatten(f(value)).forEach(element => {
-            if (marker.parentElement) {
-                marker.parentElement.insertBefore(element, marker);
-            }
-            elements.push(element);
-        });
-    });
-    return elements;
+    }
+
+    destroy() {
+        if (this.initialized && !this.destroyed) {
+            this.destructors.forEach(f => f());
+            this.destroyed = true;
+        }
+    }
 }
 
-export function ifDefined<T>(property: Property<T|undefined>, f: ((value: T) => JSX.Element[]|JSX.Element)) {
-    return map(property, value => value == undefined ? [] : f(value));
-}
-
-export function ifTrue<T>(property: Property<T>, f: () => JSX.Element[]|JSX.Element) {
-    return map(property, value => value ? f() : []);
-}
-
-export function ifFalse<T>(property: Property<T>, f: () => JSX.Element[]|JSX.Element) {
-    return map(property, value => value ? [] : f());
-}
-
-export function Hide(props: {
+export function Show(props: {
     children: JSX.Element[]|JSX.Element
     when: Property<any>,
-} | {
-    children: JSX.Element[]|JSX.Element
-    unless: Property<any>,
-}) {
-    const children = flatten(props.children);
-    if ('when' in props) {
-        props.when.getAndObserve(condition => {
-            const display = condition ? 'none' : '';
-            children.forEach(child => child.style.display = display);
+}): JSX.Element {
+    return context => {
+        const marker = document.createComment('<Show>');
+        const childNodes: Node[] = [];
+        let previous: boolean|undefined;
+        let subcontext: Context|undefined;
+        const observer = (condition: boolean) => {
+            condition = !!condition;
+            if (condition === previous) {
+                return;
+            }
+            if (condition) {
+                if (!marker.parentElement) {
+                    return; // shouldn't be possible
+                }
+                const parent = marker.parentElement;
+                subcontext = new Context();
+                apply(props.children, subcontext).forEach(node => {
+                    parent.insertBefore(node, marker);
+                    childNodes.push(node);
+                });
+                subcontext.init();
+            } else if (previous && subcontext) {
+                childNodes.forEach(node => node.parentElement?.removeChild(node));
+                subcontext.destroy();
+            }
+            previous = condition;
+        };
+        context.onInit(() => {
+            props.when.getAndObserve(observer);
         });
-    } else {
-        props.unless.getAndObserve(condition => {
-            const display = condition ? '' : 'none';
-            children.forEach(child => child.style.display = display);
+        context.onDestroy(() => {
+            props.when.unobserve(observer);
+            subcontext?.destroy();
         });
-    }
-    return children;
+        return marker;
+    };
 }
 
-export interface Model {
-    readonly active: Property<boolean>;
-    init?(): void;
-    destroy?(): void;
-}
-
-export function Active(props: {
-    children: JSX.Element[]|JSX.Element,
-    model: Model,
-}) {
-    const visible = bind(false);
-    props.model.active.getAndObserve(active => {
-        if (active === visible.value) {
-            return;
-        }
-        visible.value = active;
-        if (active) {
-            props.model.init && props.model.init();
-        } else {
-            props.model.destroy && props.model.destroy();
-        }
-    });
-    return ifTrue(visible, () => props.children);
-}
 
 export function Style(props: {
     children: JSX.Element[]|JSX.Element
@@ -495,37 +634,14 @@ export function Style(props: {
     return children;
 }
 
-export function Class(props: {
-    children: JSX.Element[]|JSX.Element
-    name: Property<string|undefined>|string|undefined,
-    enable?: Property<boolean>|boolean,
-}) {
-    const children = flatten(props.children);
-    const name = bind(undefined, props.name);
-    const enable = bind(true, props.enable);
-    let currentClass: string|undefined;
-    enable.flatMap(enable => name.map(n => enable ? n : undefined)).getAndObserve(n => {
-        if (currentClass) {
-            for (const child of children) {
-                child.classList.remove(currentClass);
-            }
-        }
-        currentClass = n;
-        if (currentClass) {
-            for (const child of children) {
-                child.classList.add(currentClass);
-            }
-        }
-    });
-    return children;
-}
-
 export function handle<TEvent>(f?: (ev: TEvent) => void): (ev: TEvent) => void {
     return f || (() => {});
 }
 
 export function mount(container: HTMLElement, ... elements: JSX.Element[]) {
-    flatten(elements).forEach(e => container.appendChild(e));
+    const context = new Context();
+    apply(elements, context).forEach(e => container.appendChild(e));
+    context.init();
 }
 
 export function Fragment({children}: {children: JSX.Element[]|JSX.Element}) {
@@ -534,7 +650,12 @@ export function Fragment({children}: {children: JSX.Element[]|JSX.Element}) {
 
 declare global {
     namespace JSX {
-        type Element = HTMLElement|HTMLElement[];
+        interface Context {
+            onInit(initializer: () => void): void;
+            onDestroy(destructor: () => void): void;
+        }
+
+        type Element = (context: Context) => Node|Node[];
 
         interface ElementAttributesProperty {
             props: any;
@@ -543,7 +664,7 @@ declare global {
             children: any;
         }
 
-        type ElementChild = HTMLElement|string|number|Property<string>|Property<number>|ElementChild[];
+        type ElementChild = HTMLElement|string|number|Property<string>|Property<number>|Element|ElementChild[];
 
         type EventHandler<TEvent extends Event> = (this: HTMLElement, ev: TEvent) => void;
 

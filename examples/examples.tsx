@@ -1,4 +1,4 @@
-import { createElement, bind, mount, Hide, bindList, loop, Property } from "../src/component";
+import { createElement, bind, mount, bindList, Property, Show, For } from "../src/component";
 import { TextControl, Field } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -11,6 +11,8 @@ const n = bind(0);
 const a = new TextControl('2');
 const b = new TextControl('3');
 const c = a.flatMap(a => b.map(b => parseInt(a) + parseInt(b)));
+
+const showCounter = bind(true);
 
 const tasks = bindList<string>(['Buy milk']);
 const task = new TextControl('');
@@ -35,6 +37,16 @@ function removeTask() {
     }
 }
 
+function Counter(_props: {}, context: JSX.Context): JSX.Element {
+    const count = bind(0);
+    const interval = setInterval(() => {
+        count.value++;
+        console.log(`The count is ${count.value}`);
+    }, 1000);
+    context.onDestroy(() => clearInterval(interval));
+    return <div>The count is {count}</div>;
+}
+
 const component = <div class='stack-column padding spacing'>
     <div class='stack-row spacing align-center'>
         <Field control={text}>
@@ -47,11 +59,11 @@ const component = <div class='stack-column padding spacing'>
         <button onClick={() => {n.value++;}}>Button</button>
         <div>{_n('Clicked {n} time', 'Clicked {n} times', {n})}</div>
     </div>
-    <Hide unless={n.map(n => n > 10)}>
+    <Show when={n.map(n => n > 10)}>
         <div>
             Clicked more than 10 times
         </div>
-    </Hide>
+    </Show>
     <div class='stack-row align-center'>
         <Field control={a}>
             <input type='text'/>
@@ -63,17 +75,27 @@ const component = <div class='stack-column padding spacing'>
         =
         {c}
     </div>
+    <div class='stack-row spacing align-center'>
+        <button onClick={() => {showCounter.value = !showCounter.value;}}>
+            {showCounter.map(x => x ? 'Hide counter' : 'Show counter')}
+        </button>
+        <Show when={showCounter}>
+            <Counter/>
+        </Show>
+    </div>
     <div class='stack-row align-center spacing'>
         <div>{_n('{n} task', '{n} tasks', {n: tasks.length})}</div>
         <button disabled={selection.undefined} onClick={removeTask}>Remove</button>
     </div>
     <div class='list' role='listbox'>
-        {loop(tasks, task => (
-            <div role='option' tabIndex={0} aria-selected={selection.map(s => s === task ? 'true' : 'false')}
-                onClick={() => selection.value = task}>
-                {task}
-            </div>
-        ))}
+        <For each={tasks}>
+            {task => (
+                <div role='option' tabIndex={0} aria-selected={selection.map(s => s === task ? 'true' : 'false')}
+                    onClick={() => selection.value = task}>
+                    {task}
+                </div>
+            )}
+        </For>
     </div>
     <form class='stack-row spacing align-center' onSubmit={addTask}>
         <Field control={task}>

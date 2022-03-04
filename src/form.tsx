@@ -1,4 +1,4 @@
-import { Property, flatten, bind } from "./component";
+import { Property, flatten, bind, ValueProperty, apply } from "./component";
 
 let nextId = 0;
 
@@ -11,8 +11,8 @@ export function createId(prefix: string): string {
     return id;
 }
 
-export abstract class Control<T> extends Property<T> {
-    readonly disabled = new Property(false);
+export abstract class Control<T> extends ValueProperty<T> {
+    readonly disabled = bind(false);
     constructor(
         value: T,
         public readonly id: string = createId('control'),
@@ -20,7 +20,7 @@ export abstract class Control<T> extends Property<T> {
         super(value);
     }
 
-    abstract add(element: Element): void;
+    abstract add(element: Node): void;
 }
 
 export class CheckboxControl extends Control<boolean> {
@@ -32,7 +32,10 @@ export class CheckboxControl extends Control<boolean> {
         super(value, id);
     }
 
-    add(element: Element) {
+    add(element: Node) {
+        if (!(element instanceof HTMLElement)) {
+            return;
+        }
         switch (element.tagName) {
             case 'LABEL':
                 (element as HTMLLabelElement).htmlFor = this.id;
@@ -88,7 +91,10 @@ export class TextControl extends Control<string> {
         super(value, id);
     }
 
-    add(element: Element) {
+    add(element: Node) {
+        if (!(element instanceof HTMLElement)) {
+            return;
+        }
         switch (element.tagName) {
             case 'LABEL':
                 (element as HTMLLabelElement).htmlFor = this.id;
@@ -137,8 +143,8 @@ export class TextControl extends Control<string> {
     }
 }
 
-export class RadioGroup<T extends string|number|symbol> extends Property<T> {
-    readonly disabled = new Property(false);
+export class RadioGroup<T extends string|number|symbol> extends ValueProperty<T> {
+    readonly disabled = bind(false);
     readonly radios = {} as Record<T, RadioControl>;
     constructor(
         value: T,
@@ -167,18 +173,22 @@ export function Field(props: {
 } | {
     children: JSX.Element|JSX.Element[],
     control: Control<any>,
-}) {
-    const children = flatten(props.children);
-    const control = 'control' in props ? props.control : new TextControl('');
-    if ('value' in props) {
-        bind('', props.value).bind(control);
-    }
-    children.forEach(child => {
-        control.add(child);
-        const nested = child.querySelectorAll('*');
-        for (let i = 0; i < nested.length; i++) {
-            control.add(nested[i]);
+}): JSX.Element {
+    return context => {
+        const children = apply(props.children, context);
+        const control = 'control' in props ? props.control : new TextControl('');
+        if ('value' in props) {
+            // TODO: bind('', props.value).bind(control);
         }
-    });
-    return children;
+        children.forEach(child => {
+            control.add(child);
+            if (child instanceof HTMLElement) {
+                const nested = child.querySelectorAll('*');
+                for (let i = 0; i < nested.length; i++) {
+                    control.add(nested[i]);
+                }
+            }
+        });
+        return children;
+    };
 }

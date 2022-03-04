@@ -1,14 +1,15 @@
-import { Property } from "./component";
+import { bind, Property } from "./component";
 
 export type ContextValue = string|number|Property<string>|Property<number>;
 
 export function _(msgid: string, context: Record<string, ContextValue> = {}): Property<string> {
-    const prop = new Property(msgid);
+    const prop = bind(msgid);
     let msg = msgid; // TODO: Translation here
     for (let key in context) {
         const value = context[key];
         if (value instanceof Property) {
             msg = msg.replace(`{${key}}`, '' + value.value);
+            // TODO: map instead of observe
             value.observe(() => {
                 let msg = msgid; // TODO: Translation here
                 for (let key in context) {
@@ -34,7 +35,7 @@ export function _n(
     msgidPlural: string,
     context: Record<string, ContextValue> & {n: number|Property<number>},
 ): Property<string> {
-    const prop = new Property(msgid);
+    const prop = bind(msgid);
     let msg = msgid; // TODO: Translation here
     const n = context.n;
     if (n instanceof Property ? n.value !== 1 && n.value !== -1 : n !== 1 && n !== -1) {
@@ -44,6 +45,7 @@ export function _n(
         const value = context[key];
         if (value instanceof Property) {
             msg = msg.replace(`{${key}}`, '' + value.value);
+            // TODO: map instead of observe
             value.observe(() => {
                 let msg = msgid; // TODO: Translation here
                 const n = context.n;
