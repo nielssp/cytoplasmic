@@ -1,4 +1,3 @@
-
 function appendChildren(element: HTMLElement, children: JSX.ElementChild[], context: JSX.Context): void {
     children.forEach(child => {
         if (typeof child === 'string') {
@@ -24,13 +23,18 @@ function appendChildren(element: HTMLElement, children: JSX.ElementChild[], cont
     });
 }
 
-export type Component<TProps> = (props: TProps, context: JSX.Context) => JSX.Element;
+export type ComponentProps<T> = T & {
+    children?: JSX.ElementChild|JSX.ElementChild[],
+};
+export type Component<T = {}> = (props: ComponentProps<T>, context: JSX.Context) => JSX.Element;
 
-type ElementAttributes = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject>;
+type ElementAttributes<T> = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject> & {
+    ref?: ValueProperty<T|undefined>,
+};
 
-export function createElement(name: string, properties: ElementAttributes, ... children: JSX.ElementChild[]): JSX.Element;
-export function createElement<TProps extends {}>(name: Component<TProps>, properties: TProps, ... children: JSX.ElementChild[]): JSX.Element;
-export function createElement<TProps extends {}>(name: string|Component<TProps>, properties: TProps & ElementAttributes, ... children: JSX.ElementChild[]): JSX.Element {
+export function createElement<TElem extends keyof HTMLElementTagNameMap>(name: TElem, properties: ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: JSX.ElementChild[]): JSX.Element;
+export function createElement<T extends {}>(name: Component<T>, properties: T, ... children: JSX.ElementChild[]): JSX.Element;
+export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps extends {}>(name: TElem|Component<TProps>, properties: TProps & ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: JSX.ElementChild[]): JSX.Element {
     if (typeof name === 'string') {
         return context => {
             const e = document.createElement(name);
@@ -382,6 +386,10 @@ export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): ValueProper
     } else {
         return new ValueProperty(binding);
     }
+}
+
+export function ref<T>(): ValueProperty<T|undefined> {
+    return bind<T|undefined>(undefined);
 }
 
 export class ListProperty<T> {
@@ -1148,7 +1156,9 @@ declare global {
             itemID?: Attribute<string>;
             itemRef?: Attribute<string>;
         }
-        type IntrinsicElementsHTML = { [TKey in keyof HTMLElementTagNameMap]?: HTMLAttributes };
+        type IntrinsicElementsHTML = { [TKey in keyof HTMLElementTagNameMap]?: HTMLAttributes & {
+            ref?: ValueProperty<HTMLElementTagNameMap[TKey]|undefined>
+        }};
 
         type IntrinsicElements = IntrinsicElementsHTML;
     }

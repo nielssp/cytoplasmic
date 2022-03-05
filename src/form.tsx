@@ -1,4 +1,4 @@
-import { Property, flatten, bind, ValueProperty, apply } from "./component";
+import { Property, bind, ValueProperty, apply } from "./component";
 
 let nextId = 0;
 
