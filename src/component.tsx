@@ -24,11 +24,13 @@ function appendChildren(element: HTMLElement, children: JSX.ElementChild[], cont
     });
 }
 
+export type Component<TProps> = (props: TProps, context: JSX.Context) => JSX.Element;
+
 type ElementAttributes = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject>;
 
 export function createElement(name: string, properties: ElementAttributes, ... children: JSX.ElementChild[]): JSX.Element;
-export function createElement<T extends JSX.Element, TProps extends {}>(name: (props: TProps, context: JSX.Context) => T, properties: TProps, ... children: JSX.ElementChild[]): T;
-export function createElement<TProps extends {}>(name: string|((props: TProps, context: JSX.Context) => JSX.Element), properties: TProps & ElementAttributes, ... children: JSX.ElementChild[]): JSX.Element {
+export function createElement<TProps extends {}>(name: Component<TProps>, properties: TProps, ... children: JSX.ElementChild[]): JSX.Element;
+export function createElement<TProps extends {}>(name: string|Component<TProps>, properties: TProps & ElementAttributes, ... children: JSX.ElementChild[]): JSX.Element {
     if (typeof name === 'string') {
         return context => {
             const e = document.createElement(name);
@@ -673,6 +675,42 @@ export function Show(props: {
         });
         context.onDestroy(() => {
             props.when.unobserve(observer);
+            subcontext?.destroy();
+        });
+        return marker;
+    };
+}
+
+export function Dynamic<T>(props: T & {
+    component: Property<Component<T>|undefined>,
+}): JSX.Element {
+    return context => {
+        const marker = document.createComment('<Dynamic>');
+        const childNodes: Node[] = [];
+        let subcontext: Context|undefined;
+        const observer = (component?: Component<T>) => {
+            if (subcontext) {
+                childNodes.forEach(node => node.parentElement?.removeChild(node));
+                subcontext.destroy();
+            }
+            if (component) {
+                if (!marker.parentElement) {
+                    return; // shouldn't be possible
+                }
+                const parent = marker.parentElement;
+                subcontext = new Context();
+                apply(component(props, subcontext), subcontext).forEach(node => {
+                    parent.insertBefore(node, marker);
+                    childNodes.push(node);
+                });
+                subcontext.init();
+            }
+        };
+        context.onInit(() => {
+            props.component.getAndObserve(observer);
+        });
+        context.onDestroy(() => {
+            props.component.unobserve(observer);
             subcontext?.destroy();
         });
         return marker;
