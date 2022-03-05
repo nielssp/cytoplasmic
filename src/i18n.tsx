@@ -1,39 +1,10 @@
-import { Property, PropertyObserver } from "./component";
+import { Property, ZippingProperty } from "./component";
 
 export type ContextValue = string|number|Property<string>|Property<number>;
 
-class TranslateProperty extends Property<string> {
-    private observers: [PropertyObserver<string>, PropertyObserver<any>][] = [];
-
-    constructor(private sources: Property<any>[], private translate: () => string) {
-        super();
-    }
-
-    get value(): string {
-        return this.translate();
-    }
-
-    observe(observer: PropertyObserver<string>): () => void {
-        const sourceObserver = () => {
-            observer(this.translate());
-        };
-        this.sources.forEach(source => source.observe(sourceObserver));
-        this.observers.push([observer, sourceObserver]);
-        return () => this.unobserve(observer);
-    }
-
-    unobserve(observer: PropertyObserver<string>): void {
-        const i = this.observers.findIndex(([o, _]) => o === observer);
-        if (i >= 0) {
-            this.sources.forEach(source => source.unobserve(this.observers[i][1]));
-            this.observers.splice(i, 1);
-        }
-    }
-}
-
 export function _(msgid: string, context: Record<string, ContextValue> = {}): Property<string> {
     const sources = Object.values(context).filter(source => source instanceof Property) as Property<any>[];
-    return new TranslateProperty(sources, () => {
+    return new ZippingProperty(sources, () => {
         let msg = msgid;
         // TODO: translate
         for (let key in context) {
@@ -54,7 +25,7 @@ export function _n(
     context: Record<string, ContextValue> & {n: number|Property<number>},
 ): Property<string> {
     const sources = Object.values(context).filter(source => source instanceof Property) as Property<any>[];
-    return new TranslateProperty(sources, () => {
+    return new ZippingProperty(sources, () => {
         let msg = msgid;
         const n = context.n;
         // TODO: translate
