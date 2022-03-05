@@ -1,4 +1,4 @@
-import { createElement, bind, mount, bindList, Property, Show, For } from "../src/component";
+import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith } from "../src/component";
 import { TextControl, Field } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -10,7 +10,7 @@ const text = new TextControl('');
 const n = bind(0);
 const a = new TextControl('2');
 const b = new TextControl('3');
-const c = a.flatMap(a => b.map(b => parseInt(a) + parseInt(b)));
+const c = zipWith([a, b], (a, b) => parseInt(a) + parseInt(b));
 
 const showCounter = bind(true);
 
@@ -72,8 +72,7 @@ const component = <div class='stack-column padding spacing'>
         <Field control={b}>
             <input type='text'/>
         </Field>
-        =
-        {c}
+        = {c}
     </div>
     <div class='stack-row spacing align-center'>
         <button onClick={() => {showCounter.value = !showCounter.value;}}>
@@ -107,3 +106,4 @@ const component = <div class='stack-column padding spacing'>
 </div>;
 
 mount(document.body, component);
+

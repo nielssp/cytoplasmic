@@ -260,6 +260,66 @@ export class FlatMappingProperty<TIn, TOut> extends Property<TOut> {
     }
 }
 
+export class ZippingProperty<T> extends Property<T> {
+    private observers: [PropertyObserver<T>, PropertyObserver<any>][] = [];
+
+    constructor(private sources: Property<any>[], private apply: () => T) {
+        super();
+    }
+
+    get value(): T {
+        return this.apply();
+    }
+
+    observe(observer: PropertyObserver<T>): () => void {
+        const sourceObserver = () => {
+            observer(this.apply());
+        };
+        this.sources.forEach(source => source.observe(sourceObserver));
+        this.observers.push([observer, sourceObserver]);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: PropertyObserver<T>): void {
+        const i = this.observers.findIndex(([o, _]) => o === observer);
+        if (i >= 0) {
+            this.sources.forEach(source => source.unobserve(this.observers[i][1]));
+            this.observers.splice(i, 1);
+        }
+    }
+}
+
+export function zip<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(a: Property<T1>, b: Property<T2>, c: Property<T3>, d: Property<T4>, e: Property<T5>, f: Property<T6>, g: Property<T7>, h: Property<T8>, i: Property<T9>, j: Property<T10>): Property<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>;
+export function zip<T1, T2, T3, T4, T5, T6, T7, T8, T9>(a: Property<T1>, b: Property<T2>, c: Property<T3>, d: Property<T4>, e: Property<T5>, f: Property<T6>, g: Property<T7>, h: Property<T8>, i: Property<T9>): Property<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>;
+export function zip<T1, T2, T3, T4, T5, T6, T7, T8>(a: Property<T1>, b: Property<T2>, c: Property<T3>, d: Property<T4>, e: Property<T5>, f: Property<T6>, g: Property<T7>, h: Property<T8>): Property<[T1, T2, T3, T4, T5, T6, T7, T8]>;
+export function zip<T1, T2, T3, T4, T5, T6, T7>(a: Property<T1>, b: Property<T2>, c: Property<T3>, d: Property<T4>, e: Property<T5>, f: Property<T6>, g: Property<T7>): Property<[T1, T2, T3, T4, T5, T6, T7]>;
+export function zip<T1, T2, T3, T4, T5, T6>(a: Property<T1>, b: Property<T2>, c: Property<T3>, d: Property<T4>, e: Property<T5>, f: Property<T6>): Property<[T1, T2, T3, T4, T5, T6]>;
+export function zip<T1, T2, T3, T4, T5>(a: Property<T1>, b: Property<T2>, c: Property<T3>, d: Property<T4>, e: Property<T5>): Property<[T1, T2, T3, T4, T5]>;
+export function zip<T1, T2, T3, T4>(a: Property<T1>, b: Property<T2>, c: Property<T3>, d: Property<T4>): Property<[T1, T2, T3, T4]>;
+export function zip<T1, T2, T3>(a: Property<T1>, b: Property<T2>, c: Property<T3>): Property<[T1, T2, T3]>;
+export function zip<T1, T2>(a: Property<T1>, b: Property<T2>): Property<[T1, T2]>;
+export function zip<T>(... properties: Property<T>[]): Property<T[]> {
+    return new ZippingProperty(properties, () => {
+        return properties.map(p => p.value);
+    });
+}
+
+export function zipWith<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>, Property<T4>, Property<T5>, Property<T6>, Property<T7>, Property<T8>, Property<T9>, Property<T10>], f: (a: T1, b: T2, c: T3, d: T4, e: T5, f: T6, g: T7, h: T8, i: T9, j: T10) => TOut): Property<TOut>;
+export function zipWith<T1, T2, T3, T4, T5, T6, T7, T8, T9, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>, Property<T4>, Property<T5>, Property<T6>, Property<T7>, Property<T8>, Property<T9>], f: (a: T1, b: T2, c: T3, d: T4, e: T5, f: T6, g: T7, h: T8, i: T9) => TOut): Property<TOut>;
+export function zipWith<T1, T2, T3, T4, T5, T6, T7, T8, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>, Property<T4>, Property<T5>, Property<T6>, Property<T7>, Property<T8>], f: (a: T1, b: T2, c: T3, d: T4, e: T5, f: T6, g: T7, h: T8) => TOut): Property<TOut>;
+export function zipWith<T1, T2, T3, T4, T5, T6, T7, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>, Property<T4>, Property<T5>, Property<T6>, Property<T7>], f: (a: T1, b: T2, c: T3, d: T4, e: T5, f: T6, g: T7) => TOut): Property<TOut>;
+export function zipWith<T1, T2, T3, T4, T5, T6, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>, Property<T4>, Property<T5>, Property<T6>], f: (a: T1, b: T2, c: T3, d: T4, e: T5, f: T6) => TOut): Property<TOut>;
+export function zipWith<T1, T2, T3, T4, T5, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>, Property<T4>, Property<T5>], f: (a: T1, b: T2, c: T3, d: T4, e: T5) => TOut): Property<TOut>;
+export function zipWith<T1, T2, T3, T4, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>, Property<T4>], f: (a: T1, b: T2, c: T3, d: T4) => TOut): Property<TOut>;
+export function zipWith<T1, T2, T3, TOut>(properties: [Property<T1>, Property<T2>, Property<T3>], f: (a: T1, b: T2, c: T3) => TOut): Property<TOut>;
+export function zipWith<T1, T2, TOut>(properties: [Property<T1>, Property<T2>], f: (a: T1, b: T2) => TOut): Property<TOut>;
+export function zipWith<T, TOut>(properties: Property<T>[], f: (... values: T[]) => TOut): Property<TOut> {
+    return new ZippingProperty(properties, () => {
+        return f(... properties.map(p => p.value));
+    });
+}
+
+
 export class ValueProperty<T> extends Property<T> {
     private observers: PropertyObserver<T>[] = [];
 
