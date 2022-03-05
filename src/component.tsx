@@ -617,21 +617,26 @@ export function Style(props: {
     children: JSX.Element[]|JSX.Element
 } & {
     [TKey in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[TKey]|Property<CSSStyleDeclaration[TKey]>
-}) {
-    const children = flatten(props.children);
-    (Array.isArray(children) ? children : [children]).forEach(child => {
-        for (let key in props) {
-            if (props.hasOwnProperty(key) && key !== 'children') {
-                const value = props[key];
-                if (value instanceof Property) {
-                    value.getAndObserve(v => child.style[key] = v);
-                } else if (value) {
-                    child.style[key] = value;
+}): JSX.Element {
+    return context => {
+        const children = apply(props.children, context);
+        (Array.isArray(children) ? children : [children]).forEach(child => {
+            if (!(child instanceof HTMLElement)) {
+                return;
+            }
+            for (let key in props) {
+                if (props.hasOwnProperty(key) && key !== 'children') {
+                    const value = props[key];
+                    if (value instanceof Property) {
+                        value.getAndObserve(v => child.style[key] = v);
+                    } else if (value) {
+                        child.style[key] = value;
+                    }
                 }
             }
-        }
-    });
-    return children;
+        });
+        return children;
+    };
 }
 
 export function handle<TEvent>(f?: (ev: TEvent) => void): (ev: TEvent) => void {

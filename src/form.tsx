@@ -20,7 +20,7 @@ export abstract class Control<T> extends ValueProperty<T> {
         super(value);
     }
 
-    abstract add(element: Node): void;
+    abstract add(element: Node, context: JSX.Context): void;
 }
 
 export class CheckboxControl extends Control<boolean> {
@@ -32,7 +32,7 @@ export class CheckboxControl extends Control<boolean> {
         super(value, id);
     }
 
-    add(element: Node) {
+    add(element: Node, context: JSX.Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -41,21 +41,21 @@ export class CheckboxControl extends Control<boolean> {
                 (element as HTMLLabelElement).htmlFor = this.id;
                 break;
             case 'INPUT':
-                this.addCheckboxInput(element as HTMLInputElement);
+                this.addCheckboxInput(element as HTMLInputElement, context);
                 break;
         }
     }
 
-    protected addCheckboxInput(input: HTMLInputElement) {
+    protected addCheckboxInput(input: HTMLInputElement, context: JSX.Context) {
         if (!this.inputs.length) {
             input.id = this.id;
         }
         this.inputs.push(input);
-        this.getAndObserve(v => input.checked = v);
-        input.addEventListener('change', () => {
-            this.value = input.checked;
-        });
-        this.disabled.getAndObserve(disabled => input.disabled = disabled);
+        context.onDestroy(this.getAndObserve(v => input.checked = v));
+        const eventListener = () => this.value = input.checked;
+        input.addEventListener('change', eventListener);
+        context.onDestroy(() => input.removeEventListener('change', eventListener));
+        context.onDestroy(this.disabled.getAndObserve(disabled => input.disabled = disabled));
     }
 
     focus() {
@@ -76,8 +76,8 @@ export class RadioControl extends CheckboxControl {
         super(value, id);
     }
 
-    protected addCheckboxInput(input: HTMLInputElement) {
-        super.addCheckboxInput(input);
+    protected addCheckboxInput(input: HTMLInputElement, context: JSX.Context) {
+        super.addCheckboxInput(input, context);
         input.name = this.name;
     }
 }
@@ -91,7 +91,7 @@ export class TextControl extends Control<string> {
         super(value, id);
     }
 
-    add(element: Node) {
+    add(element: Node, context: JSX.Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -100,22 +100,22 @@ export class TextControl extends Control<string> {
                 (element as HTMLLabelElement).htmlFor = this.id;
                 break;
             case 'INPUT':
-                this.addTextInput(element as HTMLInputElement);
+                this.addTextInput(element as HTMLInputElement, context);
                 break;
             case 'TEXTAREA':
-                this.addTextInput(element as HTMLTextAreaElement);
+                this.addTextInput(element as HTMLTextAreaElement, context);
                 break;
         }
     }
 
-    private addTextInput(input: HTMLInputElement|HTMLTextAreaElement) {
+    private addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: JSX.Context) {
         if (!this.inputs.length) {
             input.id = this.id;
         }
         this.inputs.push(input);
-        this.getAndObserve(v => input.value = v);
+        context.onDestroy(this.getAndObserve(v => input.value = v));
         let interval: number|undefined;
-        input.addEventListener('focus', () => {
+        const focusListener = () => {
             this.value = input.value;
             if (interval == undefined) {
                 interval = window.setInterval(() => {
@@ -124,14 +124,21 @@ export class TextControl extends Control<string> {
                     }
                 }, 33);
             }
-        });
-        input.addEventListener('blur', () => {
+        };
+        input.addEventListener('focus', focusListener);
+        const clear = () => {
             if (interval != undefined) {
                 clearInterval(interval);
                 interval = undefined;
             }
+        };
+        input.addEventListener('blur', clear);
+        context.onDestroy(() => {
+            input.removeEventListener('focus', focusListener);
+            input.removeEventListener('blur', clear);
+            clear();
         });
-        this.disabled.getAndObserve(disabled => input.disabled = disabled);
+        context.onDestroy(this.disabled.getAndObserve(disabled => input.disabled = disabled));
     }
 
     focus() {
@@ -181,11 +188,11 @@ export function Field(props: {
             // TODO: bind('', props.value).bind(control);
         }
         children.forEach(child => {
-            control.add(child);
+            control.add(child, context);
             if (child instanceof HTMLElement) {
                 const nested = child.querySelectorAll('*');
                 for (let i = 0; i < nested.length; i++) {
-                    control.add(nested[i]);
+                    control.add(nested[i], context);
                 }
             }
         });
