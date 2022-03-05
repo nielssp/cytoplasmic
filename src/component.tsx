@@ -60,7 +60,14 @@ export function createElement<TProps extends {}>(name: string|((props: TProps, c
                             } else if (typeof value === 'object') {
                                 for (let key in value) {
                                     if (value.hasOwnProperty(key)) {
-                                        e.style[key as any] = (value as any)[key as any] as any;
+                                        const declValue = (value as any)[key as any] as any;
+                                        if (declValue instanceof Property) {
+                                            context.onDestroy(declValue.getAndObserve((declValue: any) => {
+                                                e.style[key as any] = declValue;
+                                            }));
+                                        } else {
+                                            e.style[key as any] = declValue;
+                                        }
                                     }
                                 }
                             } else {
@@ -1071,7 +1078,9 @@ declare global {
             srcSet?: Attribute<string>;
             start?: Attribute<number>;
             step?: Attribute<number | string>;
-            style?: Attribute<string | Partial<CSSStyleDeclaration>>;
+            style?: Attribute<string | {
+                [TKey in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[TKey]|Property<CSSStyleDeclaration[TKey]>
+            }>;
             summary?: Attribute<string>;
             tabIndex?: Attribute<number>;
             target?: Attribute<string>;

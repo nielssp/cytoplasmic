@@ -59,6 +59,9 @@ const component = <div class='stack-column padding spacing'>
         <button onClick={() => {n.value++;}}>Button</button>
         <div>{_n('Clicked {n} time', 'Clicked {n} times', {n})}</div>
     </div>
+    <div class="lowered">
+        <div style={{backgroundColor: '#008', height: '20px', width: n.map(n => `${n}px`)}}></div>
+    </div>
     <Show when={n.map(n => n > 10)}>
         <div>
             Clicked more than 10 times
