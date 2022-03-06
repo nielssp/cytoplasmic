@@ -1,7 +1,7 @@
 const path = require('path');
 
-
-const config = {
+module.exports = {
+  mode: 'production',
   entry: './src/index.tsx',
   module: {
     rules: [
@@ -9,22 +9,7 @@ const config = {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/,
-      },
-      {
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader'],
-      },
-      {
-        test: /\.(png|jpe?g|gif|svg)$/i,
-        use: [
-          {
-            loader: 'file-loader',
-            options: {
-              esModule: false,
-            },
-          },
-        ],
-      },
+      }
     ],
   },
   devtool: 'source-map',
@@ -37,23 +22,5 @@ const config = {
     libraryTarget: 'umd',
     library: 'CSTK',
     umdNamedDefine: true
-  },
-  devServer: {
-    contentBase: path.join(__dirname, 'dist'),
-    compress: true,
-    port: 9000
   }
-};
-module.exports = (argv, env) => {
-  if (env.mode === 'development') {
-    const HtmlWebpackPlugin = require('html-webpack-plugin');
-    config.entry = [config.entry, './examples/examples.tsx'];
-    config.plugins = [
-      new HtmlWebpackPlugin({template: './examples/index.html'})
-    ];
-  }
-  if (env.mode) {
-    config.mode = env.mode;
-  }
-  return config;
 };

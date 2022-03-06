@@ -49,6 +49,28 @@ function removeTask() {
     }
 }
 
+function moveTaskUp() {
+    if (selection.value != undefined) {
+        const i = tasks.items.indexOf(selection.value);
+        if (i > 0) {
+            tasks.remove(i);
+            tasks.insert(i - 1, selection.value.value);
+            selection.value = tasks.items[i - 1];
+        }
+    }
+}
+
+function moveTaskDown() {
+    if (selection.value != undefined) {
+        const i = tasks.items.indexOf(selection.value);
+        if (i < tasks.items.length - 1) {
+            tasks.remove(i);
+            tasks.insert(i + 1, selection.value.value);
+            selection.value = tasks.items[i + 1];
+        }
+    }
+}
+
 function Counter(_props: {}, context: JSX.Context): JSX.Element {
     const count = bind(0);
     const interval = setInterval(() => {
@@ -100,6 +122,8 @@ const component = <div class='stack-column padding spacing'>
     <div class='stack-row align-center spacing'>
         <div>{_n('{n} task', '{n} tasks', {n: tasks.length})}</div>
         <button disabled={selection.undefined} onClick={removeTask}>Remove</button>
+        <button disabled={selection.undefined} onClick={moveTaskUp}>Up</button>
+        <button disabled={selection.undefined} onClick={moveTaskDown}>Down</button>
     </div>
     <div class='list' role='listbox'>
         <For each={tasks}>
