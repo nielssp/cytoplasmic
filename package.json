@@ -4,6 +4,7 @@
   "description": "The Classic Stylesheets Toolkit",
   "author": "Niels Poulsen",
   "license": "MIT",
+  "repository": "nielssp/cstk",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
