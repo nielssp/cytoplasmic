@@ -25,6 +25,18 @@ function addTask(e: Event) {
     task.value = '';
 }
 
+function insertTask(e: Event) {
+    e.preventDefault();
+    if (selection.value != undefined) {
+        const i = tasks.items.indexOf(selection.value);
+        tasks.insert(i, task.value);
+        selection.value = tasks.items[i];
+    } else {
+        tasks.insert(0, task.value);
+    }
+    task.value = '';
+}
+
 function removeTask() {
     if (selection.value != undefined) {
         const i = tasks.items.indexOf(selection.value);
@@ -91,10 +103,10 @@ const component = <div class='stack-column padding spacing'>
     </div>
     <div class='list' role='listbox'>
         <For each={tasks}>
-            {task => (
+            {(task, index) => (
                 <div role='option' tabIndex={0} aria-selected={selection.map(s => s === task ? 'true' : 'false')}
                     onClick={() => selection.value = task}>
-                    {task}
+                    {index.map(i => i + 1)}: {task}
                 </div>
             )}
         </For>
@@ -105,6 +117,7 @@ const component = <div class='stack-column padding spacing'>
             <input type='text'/>
         </Field>
         <button type='submit' disabled={task.not}>Add</button>
+        <button onClick={insertTask} disabled={task.not}>Insert</button>
     </form>
 </div>;
 

@@ -409,6 +409,13 @@ export class ListProperty<T> {
         return this._items;
     }
 
+    insert(index: number, item: T): void {
+        const prop = bind(item);
+        this._items.splice(index, 0, prop);
+        this.length.value++;
+        this.onInsert.emit({index, item: prop});
+    }
+
     push(item: T): void {
         const index = this.length.value;
         const prop = bind(item);
@@ -442,40 +449,63 @@ export function bindList<T>(initialItems: T[] = []): ListProperty<T> {
 
 export function For<T>({each, children}: {
     each: ListProperty<T>|Property<T[]>,
-    children: (value: Property<T>) => JSX.Element
+    children: (value: Property<T>, index: Property<number>) => JSX.Element
 }, context: JSX.Context): JSX.Element {
     const marker = document.createComment('<For>');
-    let items: [Node[], Context][] = [];
+    let items: [Node[], Context, ValueProperty<number>][] = [];
     if (each instanceof ListProperty) {
         context.onInit(() => {
-            each.items.forEach(item => {
+            each.items.forEach((item, index) => {
                 const nodes: Node[] = [];
                 const subcontext = new Context();
-                apply(children(item), subcontext).forEach(node => {
+                const indexProperty = bind(index);
+                apply(children(item, indexProperty), subcontext).forEach(node => {
                     if (!marker.parentElement) {
                         return;
                     }
                     nodes.push(node);
                     marker.parentElement.insertBefore(node, marker);
                 });
-                items.push([nodes, subcontext]);
+                items.push([nodes, subcontext, indexProperty]);
                 subcontext.init();
             });
             context.onDestroy(each.onInsert.observe(({index, item}) => {
                 if (index >= items.length) {
                     const nodes: Node[] = [];
                     const subcontext = new Context();
-                    apply(children(item), subcontext).forEach(node => {
+                    const indexProperty = bind(index);
+                    apply(children(item, indexProperty), subcontext).forEach(node => {
                         if (!marker.parentElement) {
                             return;
                         }
                         nodes.push(node);
                         marker.parentElement.insertBefore(node, marker);
                     });
-                    items.push([nodes, subcontext]);
+                    items.push([nodes, subcontext, indexProperty]);
                     subcontext.init();
                 } else {
-                    // TODO
+                    let next: Node = marker;
+                    for (let i = index; i < items.length; i++) {
+                        if (items[i][0].length) {
+                            next = items[i][0][0];
+                            break;
+                        }
+                    }
+                    const nodes: Node[] = [];
+                    const subcontext = new Context();
+                    const indexProperty = bind(index);
+                    apply(children(item, indexProperty), subcontext).forEach(node => {
+                        if (!next.parentElement) {
+                            return;
+                        }
+                        nodes.push(node);
+                        next.parentElement.insertBefore(node, next);
+                    });
+                    items.splice(index, 0, [nodes, subcontext, indexProperty]);
+                    subcontext.init();
+                    for (let i = index + 1; i < items.length; i++) {
+                        items[i][2].value = i;
+                    }
                 }
             }));
             context.onDestroy(each.onRemove.observe(index => {
@@ -487,6 +517,9 @@ export function For<T>({each, children}: {
                     });
                     subcontext.destroy();
                 });
+                for (let i = index; i < items.length; i++) {
+                    items[i][2].value = i;
+                }
             }));
             context.onDestroy(() => {
                 items.forEach(([_, subcontext]) => {
@@ -495,88 +528,71 @@ export function For<T>({each, children}: {
             });
         });
     } else {
+        const properties = each.value.map(v => bind(v));
+        context.onInit(() => {
+            properties.forEach((item, index) => {
+                const nodes: Node[] = [];
+                const subcontext = new Context();
+                const indexProperty = bind(index);
+                apply(children(item, indexProperty), subcontext).forEach(node => {
+                    if (!marker.parentElement) {
+                        return;
+                    }
+                    nodes.push(node);
+                    marker.parentElement.insertBefore(node, marker);
+                });
+                items.push([nodes, subcontext, indexProperty]);
+                subcontext.init();
+            });
+            context.onDestroy(each.observe(xs => {
+                if (xs.length < properties.length) {
+                    properties.splice(xs.length);
+                    items.splice(xs.length).forEach(([nodes, subcontext]) => {
+                        nodes.forEach(node => {
+                            if (node.parentElement) {
+                                node.parentElement.removeChild(node);
+                            }
+                        });
+                        subcontext.destroy();
+                    });
+                    for (let i = 0; i < properties.length; i++) {
+                        properties[i].value = xs[i];
+                    }
+                } else if (xs.length > properties.length) {
+                    for (let i = 0; i < properties.length; i++) {
+                        properties[i].value = xs[i];
+                    }
+                    for (let i = properties.length; i < xs.length; i++) {
+                        const nodes: Node[] = [];
+                        const subcontext = new Context();
+                        const property = bind(xs[i]);
+                        properties.push(property);
+                        const indexProperty = bind(i);
+                        apply(children(property, indexProperty), subcontext).forEach(node => {
+                            if (!marker.parentElement) {
+                                return;
+                            }
+                            nodes.push(node);
+                            marker.parentElement.insertBefore(node, marker);
+                        });
+                        items.push([nodes, subcontext, indexProperty]);
+                        subcontext.init();
+                    }
+                } else {
+                    for (let i = 0; i < properties.length; i++) {
+                        properties[i].value = xs[i];
+                    }
+                }
+            }));
+            context.onDestroy(() => {
+                items.forEach(([_, subcontext]) => {
+                    subcontext.destroy();
+                });
+            });
+        });
     }
     return () => marker;
 }
-
-/*
-export function loop<T>(
-    list: ListProperty<T>|Property<T[]>,
-    body: (value: Property<T>) => JSX.Element
-): JSX.Element {
-    const marker = document.createElement('span');
-    marker.style.display = 'none';
-    let elements: HTMLElement[] = [marker];
-    if (list instanceof ListProperty) {
-        list.items.forEach(item => {
-            flatten(body(item)).forEach(element => elements.splice(-1, 0, element));
-        });
-        list.onInsert.observe(({index, item}) => {
-            // TODO: index
-            const element = flatten(body(item));
-            if (marker.parentElement) {
-                for (let e of element) {
-                    marker.parentElement.insertBefore(e, marker);
-                }
-            }
-            element.forEach(element => elements.splice(-1, 0, element));
-        });
-        list.onRemove.observe(index => {
-            if (marker.parentElement) {
-                const markerIndex = Array.prototype.indexOf.call(marker.parentElement.children, marker);
-                if (markerIndex >= index) {
-                    const elementIndex = markerIndex - (list.length.value + 1 - index);
-                    marker.parentElement.removeChild(marker.parentElement.children[elementIndex]);
-                }
-            }
-            elements.splice(index + 1, 0);
-        });
-    } else {
-        const properties = list.value.map(v => bind(v));
-        properties.forEach(property => {
-            flatten(body(property)).forEach(element => elements.splice(-1, 0, element));
-        });
-        list.observe(xs => {
-            if (xs.length < properties.length) {
-                if (marker.parentElement) {
-                    const markerIndex = Array.prototype.indexOf.call(marker.parentElement.children, marker);
-                    for (let i = 0; i < properties.length - xs.length; i++) {
-                        const elementIndex = markerIndex - 1 - i;
-                        if (elementIndex >= 0) {
-                            marker.parentElement.removeChild(marker.parentElement.children[elementIndex]);
-                        }
-                    }
-                }
-                properties.splice(xs.length);
-                elements.splice(xs.length, elements.length, marker);
-                for (let i = 0; i < properties.length; i++) {
-                    properties[i].value = xs[i];
-                }
-            } else if (xs.length > properties.length) {
-                for (let i = 0; i < properties.length; i++) {
-                    properties[i].value = xs[i];
-                }
-                let newElements: HTMLElement[] = [];
-                for (let i = properties.length; i < xs.length; i++) {
-                    properties.push(bind(xs[i]));
-                    flatten(body(properties[i])).forEach(e => newElements.push(e));
-                }
-                if (marker.parentElement) {
-                    for (let element of newElements) {
-                        marker.parentElement.insertBefore(element, marker);
-                    }
-                }
-                newElements.forEach(element => elements.splice(-1, 0, element));
-            } else {
-                for (let i = 0; i < properties.length; i++) {
-                    properties[i].value = xs[i];
-                }
-            }
-        });
-    }
-    return elements;
-}
-*/
 
 export function flatten(elements: JSX.Element[]|JSX.Element): JSX.Element {
     if (Array.isArray(elements)) {
@@ -648,7 +664,7 @@ class Context implements JSX.Context {
 }
 
 export function Show(props: {
-    children: JSX.Element[]|JSX.Element
+    children: JSX.Element[]|JSX.Element,
     when: Property<any>,
 }): JSX.Element {
     return context => {
