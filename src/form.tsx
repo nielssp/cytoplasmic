@@ -56,6 +56,7 @@ export class CheckboxControl extends Control<boolean> {
         input.addEventListener('change', eventListener);
         context.onDestroy(() => input.removeEventListener('change', eventListener));
         context.onDestroy(this.disabled.getAndObserve(disabled => input.disabled = disabled));
+        context.onDestroy(() => this.inputs.splice(this.inputs.indexOf(input), 1));
     }
 
     focus() {
@@ -139,6 +140,7 @@ export class TextControl extends Control<string> {
             clear();
         });
         context.onDestroy(this.disabled.getAndObserve(disabled => input.disabled = disabled));
+        context.onDestroy(() => this.inputs.splice(this.inputs.indexOf(input), 1));
     }
 
     focus() {

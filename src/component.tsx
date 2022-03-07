@@ -79,6 +79,10 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                             } else {
                                 e.setAttribute('style', '' + value);
                             }
+                        } else if (prop === 'ref') {
+                            if (value instanceof ValueProperty) {
+                                value.value = e;
+                            }
                         } else if (value instanceof Property) {
                             const observer = (value: string|number|boolean) => {
                                 if (value === true) {
@@ -772,10 +776,14 @@ export function handle<TEvent>(f?: (ev: TEvent) => void): (ev: TEvent) => void {
     return f || (() => {});
 }
 
-export function mount(container: HTMLElement, ... elements: JSX.Element[]) {
+export function mount(container: HTMLElement, ... elements: JSX.Element[]): () => void {
     const context = new Context();
     apply(elements, context).forEach(e => container.appendChild(e));
     context.init();
+    return () => {
+        container.innerHTML = '';
+        context.destroy();
+    };
 }
 
 export function Fragment({children}: {children: JSX.Element[]|JSX.Element}) {
