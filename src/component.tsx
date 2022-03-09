@@ -709,6 +709,52 @@ export function Show(props: {
     };
 }
 
+export function Deref<T>(props: {
+    children: (value: Property<T>) => JSX.Element
+    ref: Property<T|undefined>,
+}): JSX.Element {
+    return context => {
+        const marker = document.createComment('<Deref>');
+        const childNodes: Node[] = [];
+        let property: ValueProperty<T>|undefined;
+        let subcontext: Context|undefined;
+        const observer = (value: T|undefined) => {
+            if (value) {
+                if (!property) {
+                    property = bind(value);
+                } else {
+                    property.value = value;
+                }
+                if (subcontext) {
+                    return;
+                }
+                if (!marker.parentElement) {
+                    return; // shouldn't be possible
+                }
+                const parent = marker.parentElement;
+                subcontext = new Context();
+                apply(props.children(property), subcontext).forEach(node => {
+                    parent.insertBefore(node, marker);
+                    childNodes.push(node);
+                });
+                subcontext.init();
+            } else if (subcontext) {
+                childNodes.forEach(node => node.parentElement?.removeChild(node));
+                subcontext.destroy();
+                subcontext = undefined;
+            }
+        };
+        context.onInit(() => {
+            props.ref.getAndObserve(observer);
+        });
+        context.onDestroy(() => {
+            props.ref.unobserve(observer);
+            subcontext?.destroy();
+        });
+        return marker;
+    };
+}
+
 export function Dynamic<T>(props: T & {
     component: Property<Component<T>|undefined>,
 }): JSX.Element {
