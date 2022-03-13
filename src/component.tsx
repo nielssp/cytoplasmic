@@ -122,8 +122,6 @@ export type Observer<T> = (event: T) => any;
 
 export type PropertyObserver<T> = (newValue: T) => any;
 
-let numObservers = 0;
-
 export class Emitter<T> {
     private observers: Observer<T>[] = [];
 
@@ -182,6 +180,14 @@ export abstract class Property<T> {
 
     get undefined(): Property<boolean> {
         return this.map(x => x == undefined);
+    }
+
+    eq(other: Property<T>|T): Property<boolean> {
+        if (other instanceof Property) {
+            return zipWith([this, other], (x, y) => x === y);
+        } else {
+            return this.map(x => x === other);
+        }
     }
 
     and<T2>(other: Property<T2>): Property<T2|false> {
@@ -357,8 +363,6 @@ export class ValueProperty<T> extends Property<T> {
 
     observe(observer: PropertyObserver<T>): () => void {
         this.observers.push(observer);
-        numObservers++;
-        console.log({numObservers, observer});
         return () => this.unobserve(observer);
     }
 
@@ -366,8 +370,6 @@ export class ValueProperty<T> extends Property<T> {
         const i = this.observers.findIndex(o => o === observer);
         if (i >= 0) {
             this.observers.splice(i, 1);
-            numObservers--;
-            console.log({numObservers});
         }
     }
 }
