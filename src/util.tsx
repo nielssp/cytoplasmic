@@ -1,3 +1,4 @@
+import { Property } from "./component";
 
 export function noDefault<TEvent extends Event>(
     handler?: (this: HTMLElement, ev: TEvent) => void
@@ -20,4 +21,8 @@ export function stopPropagation<TEvent extends Event>(
             handler.call(this, ev);
         }
     };
+}
+
+export function ariaBool(p: Property<any>): Property<'true'|'false'> {
+    return p.map(x => x ? 'true' : 'false');
 }
