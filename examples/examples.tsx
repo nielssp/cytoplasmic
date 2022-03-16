@@ -1,4 +1,4 @@
-import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith } from "../src/component";
+import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith, ref, ariaBool } from "../src";
 import { TextControl, Field } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -17,7 +17,7 @@ const showCounter = bind(true);
 const tasks = bindList<string>(['Buy milk']);
 const task = new TextControl('');
 
-const selection = bind<Property<string>|undefined>(undefined);
+const selection = ref<number>();
 
 function addTask(e: Event) {
     e.preventDefault();
@@ -28,9 +28,7 @@ function addTask(e: Event) {
 function insertTask(e: Event) {
     e.preventDefault();
     if (selection.value != undefined) {
-        const i = tasks.items.indexOf(selection.value);
-        tasks.insert(i, task.value);
-        selection.value = tasks.items[i];
+        tasks.insert(selection.value, task.value);
     } else {
         tasks.insert(0, task.value);
     }
@@ -39,10 +37,9 @@ function insertTask(e: Event) {
 
 function removeTask() {
     if (selection.value != undefined) {
-        const i = tasks.items.indexOf(selection.value);
-        tasks.remove(i);
+        tasks.remove(selection.value);
         if (tasks.length.value) {
-            selection.value = tasks.items[Math.max(0, i - 1)];
+            selection.value = Math.max(0, selection.value - 1);
         } else {
             selection.value = undefined;
         }
@@ -50,23 +47,21 @@ function removeTask() {
 }
 
 function moveTaskUp() {
-    if (selection.value != undefined) {
-        const i = tasks.items.indexOf(selection.value);
-        if (i > 0) {
-            tasks.remove(i);
-            tasks.insert(i - 1, selection.value.value);
-            selection.value = tasks.items[i - 1];
+    if (selection.value != undefined && selection.value > 0) {
+        const removed = tasks.remove(selection.value);
+        if (removed) {
+            tasks.insert(selection.value - 1, removed);
+            selection.value--;
         }
     }
 }
 
 function moveTaskDown() {
-    if (selection.value != undefined) {
-        const i = tasks.items.indexOf(selection.value);
-        if (i < tasks.items.length - 1) {
-            tasks.remove(i);
-            tasks.insert(i + 1, selection.value.value);
-            selection.value = tasks.items[i + 1];
+    if (selection.value != undefined && selection.value < tasks.items.length - 1) {
+        const removed = tasks.remove(selection.value);
+        if (removed) {
+            tasks.insert(selection.value + 1, removed);
+            selection.value++;
         }
     }
 }
@@ -116,7 +111,9 @@ const component = <div class='stack-column padding spacing'>
             {showCounter.map(x => x ? 'Hide counter' : 'Show counter')}
         </button>
         <Show when={showCounter}>
-            <Counter/>
+            <Show when={showCounter}>
+                <Counter/>
+            </Show>
         </Show>
     </div>
     <div class='stack-row align-center spacing'>
@@ -128,8 +125,8 @@ const component = <div class='stack-column padding spacing'>
     <div class='list' role='listbox'>
         <For each={tasks}>
             {(task, index) => (
-                <div role='option' tabIndex={0} aria-selected={selection.map(s => s === task ? 'true' : 'false')}
-                    onClick={() => selection.value = task}>
+                <div role='option' tabIndex={0} aria-selected={ariaBool(index.eq(selection))}
+                    onClick={() => selection.value = index.value}>
                     {index.map(i => i + 1)}: {task}
                 </div>
             )}
