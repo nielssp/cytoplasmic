@@ -84,12 +84,21 @@ export class RadioControl extends CheckboxControl {
 }
 
 export class TextControl extends Control<string> {
-    private inputs: HTMLElement[] = [];
+    private inputs: (HTMLInputElement|HTMLTextAreaElement)[] = [];
     constructor(
         value: string,
         id?: string,
     ) {
         super(value, id);
+    }
+
+    set(value: string) {
+        this.inputs.forEach(input => {
+            if (value !== input.value) {
+                input.value = value;
+            }
+        });
+        super.set(value);
     }
 
     add(element: Node, context: JSX.Context) {
@@ -114,7 +123,6 @@ export class TextControl extends Control<string> {
             input.id = this.id;
         }
         this.inputs.push(input);
-        context.onDestroy(this.getAndObserve(v => input.value = v));
         let interval: number|undefined;
         const focusListener = () => {
             this.value = input.value;

@@ -355,6 +355,10 @@ export class ValueProperty<T> extends Property<T> {
     }
 
     set value(value: T) {
+        this.set(value);
+    }
+
+    set(value: T) {
         this._value = value;
         for (let observer of this.observers) {
             observer(value);
