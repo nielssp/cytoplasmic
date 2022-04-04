@@ -20,8 +20,8 @@ export class ListProperty<T> {
     insert(index: number, item: T): void {
         const prop = bind(item);
         this._items.splice(index, 0, prop);
-        this.length.value++;
         this.onInsert.emit({index, item: prop});
+        this.length.value++;
     }
 
     updateAll(items: T[]) {
@@ -42,8 +42,8 @@ export class ListProperty<T> {
         const index = this.length.value;
         const prop = bind(item);
         this._items.push(prop);
-        this.length.value++;
         this.onInsert.emit({index, item: prop});
+        this.length.value++;
     }
 
     pushAll(items: T[]): void {
@@ -53,8 +53,8 @@ export class ListProperty<T> {
     remove(index: number): T|undefined {
         if (index >= 0 && index < this._items.length) {
             const removed = this._items.splice(index, 1)[0];
-            this.length.value--;
             this.onRemove.emit(index);
+            this.length.value--;
             return removed.value;
         }
     }
