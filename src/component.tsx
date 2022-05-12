@@ -79,6 +79,33 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                             } else {
                                 e.setAttribute('style', '' + value);
                             }
+                        } else if (prop === 'class') {
+                            if (value instanceof Property) {
+                                context.onDestroy(value.getAndObserve((value: string|number|boolean|object) => {
+                                    e.setAttribute('class', '' + value);
+                                }));
+                            } else if (typeof value === 'object') {
+                                for (let key in value) {
+                                    if (value.hasOwnProperty(key)) {
+                                        const declValue = (value as any)[key as any] as any;
+                                        if (declValue instanceof Property) {
+                                            context.onDestroy(declValue.getAndObserve((declValue: any) => {
+                                                if (declValue) {
+                                                    e.classList.add(key as any);
+                                                } else {
+                                                    e.classList.remove(key as any);
+                                                }
+                                            }));
+                                        } else if (declValue) {
+                                            e.classList.add(key as any);
+                                        } else {
+                                            e.classList.remove(key as any);
+                                        }
+                                    }
+                                }
+                            } else {
+                                e.setAttribute('class', '' + value);
+                            }
                         } else if (prop === 'ref') {
                             if (value instanceof ValueProperty) {
                                 value.value = e;
@@ -899,7 +926,7 @@ declare global {
             charSet?: Attribute<string>;
             challenge?: Attribute<string>;
             checked?: Attribute<boolean>;
-            class?: Attribute<string>;
+            class?: Attribute<string> | Record<string, Attribute<boolean>>;
             // className?: Attribute<string>;
             cols?: Attribute<number>;
             colSpan?: Attribute<number>;
