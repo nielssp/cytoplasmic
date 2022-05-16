@@ -179,6 +179,10 @@ export class Emitter<T> {
     }
 }
 
+type PropertyProxyObject<T> = T extends {} ? {
+    [TKey in keyof T]: Property<T[TKey]>;
+} : any;
+
 export abstract class Property<T> {
     abstract get value(): T;
     abstract observe(observer: PropertyObserver<T>): () => void;
@@ -222,7 +226,7 @@ export abstract class Property<T> {
             if (value) {
                 return other as Property<T2|false>;
             }
-            return bind(false);
+            return bind(false as false);
         });
     }
 
@@ -232,6 +236,12 @@ export abstract class Property<T> {
                 return this as Property<T|T2>;
             }
             return other as Property<T|T2>;
+        });
+    }
+
+    get props(): PropertyProxyObject<T> {
+        return new Proxy({} as PropertyProxyObject<T>, {
+            get: (_, name) => this.map(o => (o as any)[name]),
         });
     }
 }
