@@ -10,6 +10,9 @@ New features:
 - `x.eq(y: T|Property<T>)` on properties
 - `class={{classA: propA, classB: propB}}` on HTML elements
 - `x.props.propName` on properties
+- `x.mapDefined(f)` on properties
+- `x.orElse(alternative)` on properties
+- `x.await(onrejected)` on properties
 
 ## cstk 0.1.1
 

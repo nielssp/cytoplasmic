@@ -61,7 +61,7 @@ export class Injector<TContext> {
                 } catch (error) {
                     if (error instanceof CircularDepedencyError) {
                         const path = error.path;
-                        path.splice(0, 0, '' + name);
+                        path.splice(0, 0, String(name));
                         throw new CircularDepedencyError(path);
                     } else {
                         throw error;
@@ -73,7 +73,7 @@ export class Injector<TContext> {
         }
         const obj = this.cache[name];
         if (!obj) {
-            throw new CircularDepedencyError(['' + name]);
+            throw new CircularDepedencyError([String(name)]);
         }
         return obj!;
     }

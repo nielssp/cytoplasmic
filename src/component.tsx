@@ -197,6 +197,10 @@ export abstract class Property<T> {
         return new MappingProperty(this, f);
     }
 
+    mapDefined<T2>(f: (value: NonNullable<T>) => T2): Property<T2|undefined> {
+        return new MappingProperty(this, value => value != undefined ? f(value!) : undefined);
+    }
+
     flatMap<T2>(f: (value: T) => Property<T2>): Property<T2> {
         return new FlatMappingProperty(this, f);
     }
@@ -242,6 +246,20 @@ export abstract class Property<T> {
     get props(): PropertyProxyObject<T> {
         return new Proxy({} as PropertyProxyObject<T>, {
             get: (_, name) => this.map(o => (o as any)[name]),
+        });
+    }
+
+    orElse(alternative: NonNullable<T>): Property<NonNullable<T>> {
+        return this.map(x => x != undefined ? x as NonNullable<T> : alternative);
+    }
+
+    await(onrejected?: (reason: any) => void): Property<Awaited<T>|undefined> {
+        return this.flatMap(promise => {
+            const result = ref<Awaited<T>>();
+            if (promise instanceof Promise) {
+                (promise as Promise<Awaited<T>>).then(value => result.value = value, onrejected);
+            }
+            return result;
         });
     }
 }

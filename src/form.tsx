@@ -124,6 +124,7 @@ export class TextControl extends Control<string> {
         }
         this.inputs.push(input);
         let interval: number|undefined;
+        input.value = this.value;
         const focusListener = () => {
             this.value = input.value;
             if (interval == undefined) {
