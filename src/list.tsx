@@ -141,11 +141,8 @@ export function For<T>({each, children}: {
             }));
             context.onDestroy(each.onRemove.observe(index => {
                 items.splice(index, 1).forEach(([nodes, subcontext]) => {
-                    nodes.forEach(node => {
-                        if (node.parentElement) {
-                            node.parentElement.removeChild(node);
-                        }
-                    });
+                    nodes.forEach(node => node.parentElement?.removeChild(node));
+                    nodes.splice(0);
                     subcontext.destroy();
                 });
                 for (let i = index; i < items.length; i++) {
@@ -153,7 +150,9 @@ export function For<T>({each, children}: {
                 }
             }));
             context.onDestroy(() => {
-                items.forEach(([_, subcontext]) => {
+                items.forEach(([nodes, subcontext]) => {
+                    nodes.forEach(node => node.parentElement?.removeChild(node));
+                    nodes.splice(0);
                     subcontext.destroy();
                 });
             });
@@ -179,11 +178,8 @@ export function For<T>({each, children}: {
                 if (xs.length < properties.length) {
                     properties.splice(xs.length);
                     items.splice(xs.length).forEach(([nodes, subcontext]) => {
-                        nodes.forEach(node => {
-                            if (node.parentElement) {
-                                node.parentElement.removeChild(node);
-                            }
-                        });
+                        nodes.forEach(node => node.parentElement?.removeChild(node));
+                        nodes.splice(0);
                         subcontext.destroy();
                     });
                     for (let i = 0; i < properties.length; i++) {
@@ -216,7 +212,9 @@ export function For<T>({each, children}: {
                 }
             }));
             context.onDestroy(() => {
-                items.forEach(([_, subcontext]) => {
+                items.forEach(([nodes, subcontext]) => {
+                    nodes.forEach(node => node.parentElement?.removeChild(node));
+                    nodes.splice(0);
                     subcontext.destroy();
                 });
             });

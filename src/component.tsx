@@ -553,6 +553,7 @@ export function Show(props: {
                 subcontext.init();
             } else if (previous && subcontext) {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
+                childNodes.splice(0);
                 subcontext.destroy();
             }
             previous = condition;
@@ -561,6 +562,8 @@ export function Show(props: {
             props.when.getAndObserve(observer);
         });
         context.onDestroy(() => {
+            childNodes.forEach(node => node.parentElement?.removeChild(node));
+            childNodes.splice(0);
             props.when.unobserve(observer);
             subcontext?.destroy();
         });
@@ -599,6 +602,7 @@ export function Deref<T>(props: {
                 subcontext.init();
             } else if (subcontext) {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
+                childNodes.splice(0);
                 subcontext.destroy();
                 subcontext = undefined;
             }
@@ -607,6 +611,8 @@ export function Deref<T>(props: {
             props.ref.getAndObserve(observer);
         });
         context.onDestroy(() => {
+            childNodes.forEach(node => node.parentElement?.removeChild(node));
+            childNodes.splice(0);
             props.ref.unobserve(observer);
             subcontext?.destroy();
         });
@@ -625,6 +631,7 @@ export function Unwrap<T>(props: {
         const observer = (value: T|undefined) => {
             if (subcontext) {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
+                childNodes.splice(0);
                 subcontext.destroy();
                 subcontext = undefined;
             }
@@ -645,6 +652,8 @@ export function Unwrap<T>(props: {
             props.from.getAndObserve(observer);
         });
         context.onDestroy(() => {
+            childNodes.forEach(node => node.parentElement?.removeChild(node));
+            childNodes.splice(0);
             props.from.unobserve(observer);
             subcontext?.destroy();
         });
@@ -662,6 +671,7 @@ export function Dynamic<T>(props: T & {
         const observer = (component?: Component<T>) => {
             if (subcontext) {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
+                childNodes.splice(0);
                 subcontext.destroy();
             }
             if (component) {
@@ -681,6 +691,8 @@ export function Dynamic<T>(props: T & {
             props.component.getAndObserve(observer);
         });
         context.onDestroy(() => {
+            childNodes.forEach(node => node.parentElement?.removeChild(node));
+            childNodes.splice(0);
             props.component.unobserve(observer);
             subcontext?.destroy();
         });
