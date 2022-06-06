@@ -13,6 +13,7 @@ New features:
 - `x.mapDefined(f)` on properties
 - `x.orElse(alternative)` on properties
 - `x.await(onrejected)` on properties
+- `<Unwrap>`
 
 ## cstk 0.1.1
 

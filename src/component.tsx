@@ -614,6 +614,44 @@ export function Deref<T>(props: {
     };
 }
 
+export function Unwrap<T>(props: {
+    children: (value: T) => JSX.Element
+    from: Property<T|undefined>,
+}): JSX.Element {
+    return context => {
+        const marker = document.createComment('<Unwrap>');
+        const childNodes: Node[] = [];
+        let subcontext: Context|undefined;
+        const observer = (value: T|undefined) => {
+            if (subcontext) {
+                childNodes.forEach(node => node.parentElement?.removeChild(node));
+                subcontext.destroy();
+                subcontext = undefined;
+            }
+            if (value) {
+                if (!marker.parentElement) {
+                    return; // shouldn't be possible
+                }
+                const parent = marker.parentElement;
+                subcontext = new Context();
+                apply(props.children(value), subcontext).forEach(node => {
+                    parent.insertBefore(node, marker);
+                    childNodes.push(node);
+                });
+                subcontext.init();
+            }
+        };
+        context.onInit(() => {
+            props.from.getAndObserve(observer);
+        });
+        context.onDestroy(() => {
+            props.from.unobserve(observer);
+            subcontext?.destroy();
+        });
+        return marker;
+    };
+}
+
 export function Dynamic<T>(props: T & {
     component: Property<Component<T>|undefined>,
 }): JSX.Element {
