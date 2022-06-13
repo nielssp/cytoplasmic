@@ -68,21 +68,6 @@ export class CheckboxControl extends Control<boolean> {
     }
 }
 
-export class RadioControl extends CheckboxControl {
-    constructor(
-        value: boolean,
-        public readonly name: string,
-        id?: string,
-    ) {
-        super(value, id);
-    }
-
-    protected addCheckboxInput(input: HTMLInputElement, context: JSX.Context) {
-        super.addCheckboxInput(input, context);
-        input.name = this.name;
-    }
-}
-
 export class TextControl extends Control<string> {
     private inputs: (HTMLInputElement|HTMLTextAreaElement)[] = [];
     constructor(
@@ -161,9 +146,70 @@ export class TextControl extends Control<string> {
     }
 }
 
+export class RadioControl<T extends string|number|symbol> extends Control<boolean> {
+    private inputs: HTMLElement[] = [];
+    constructor(
+        private radioGroup: RadioGroup<T>,
+        private radioValue: T,
+        private readonly name: string,
+        id?: string,
+    ) {
+        super(radioValue === radioGroup.value, id);
+    }
+
+    add(element: Node, context: JSX.Context) {
+        if (!(element instanceof HTMLElement)) {
+            return;
+        }
+        switch (element.tagName) {
+            case 'LABEL':
+                (element as HTMLLabelElement).htmlFor = this.id;
+                break;
+            case 'INPUT':
+                this.addRadioInput(element as HTMLInputElement, context);
+                break;
+        }
+    }
+
+    protected addRadioInput(input: HTMLInputElement, context: JSX.Context) {
+        if (!this.inputs.length) {
+            input.id = this.id;
+        }
+        this.inputs.push(input);
+        input.name = this.name;
+        context.onDestroy(this.getAndObserve(v => {
+            if (v) {
+                this.radioGroup.value = this.radioValue;
+            }
+        }));
+        context.onDestroy(this.radioGroup.getAndObserve(v => {
+            if (v === this.radioValue) {
+                input.checked = true;
+            }
+        }));
+        const eventListener = () => {
+            if (input.checked) {
+                this.radioGroup.value = this.radioValue;
+            }
+        };
+        input.addEventListener('change', eventListener);
+        context.onDestroy(() => input.removeEventListener('change', eventListener));
+        context.onDestroy(this.radioGroup.disabled.getAndObserve(disabled => input.disabled = disabled));
+        context.onDestroy(() => this.inputs.splice(this.inputs.indexOf(input), 1));
+    }
+
+    focus() {
+        this.inputs.length && this.inputs[0].focus();
+    }
+
+    blur() {
+        this.inputs.length && this.inputs[0].focus();
+    }
+}
+
 export class RadioGroup<T extends string|number|symbol> extends ValueProperty<T> {
     readonly disabled = bind(false);
-    readonly radios = {} as Record<T, RadioControl>;
+    readonly radios = {} as Record<T, RadioControl<T>>;
     constructor(
         value: T,
         public readonly name: string = createId('radiogroup'),
@@ -171,15 +217,9 @@ export class RadioGroup<T extends string|number|symbol> extends ValueProperty<T>
         super(value);
     }
 
-    get(value: T): RadioControl {
+    get(value: T): RadioControl<T> {
         if (!this.radios.hasOwnProperty(value)) {
-            this.radios[value] = new RadioControl(this.value === value, this.name);
-            this.radios[value].observe(checked => {
-                if (checked) {
-                    this.value = value;
-                }
-            });
-            this.disabled.getAndObserve(disabled => this.radios[value].disabled.value = disabled);
+            this.radios[value] = new RadioControl(this, value, this.name);
         }
         return this.radios[value];
     }
