@@ -68,19 +68,23 @@ export class CheckboxControl extends Control<boolean> {
     }
 }
 
-export class TextControl extends Control<string> {
+export abstract class TextInputControl<T> extends Control<T> {
     private inputs: (HTMLInputElement|HTMLTextAreaElement)[] = [];
     constructor(
-        value: string,
+        value: T,
         id?: string,
     ) {
         super(value, id);
     }
 
-    set(value: string) {
+    abstract stringify(value: T): string;
+    abstract parse(str: string): T;
+
+    set(value: T) {
+        const str = this.stringify(value);
         this.inputs.forEach(input => {
-            if (value !== input.value) {
-                input.value = value;
+            if (str !== input.value) {
+                input.value = str;
             }
         });
         super.set(value);
@@ -109,13 +113,14 @@ export class TextControl extends Control<string> {
         }
         this.inputs.push(input);
         let interval: number|undefined;
-        input.value = this.value;
+        input.value = this.stringify(this.value);
         const focusListener = () => {
-            this.value = input.value;
+            this.value = this.parse(input.value);
             if (interval == undefined) {
                 interval = window.setInterval(() => {
-                    if (this.value !== input.value) {
-                        this.value = input.value;
+                    const parsed = this.parse(input.value);
+                    if (this.value !== parsed) {
+                        this.value = parsed;
                     }
                 }, 33);
             }
@@ -143,6 +148,40 @@ export class TextControl extends Control<string> {
 
     blur() {
         this.inputs.length && this.inputs[0].focus();
+    }
+}
+
+export class TextControl extends TextInputControl<string> {
+    constructor(
+        value: string,
+        id?: string,
+    ) {
+        super(value, id);
+    }
+
+    stringify(value: string): string {
+        return value;
+    }
+
+    parse(str: string): string {
+        return str;
+    }
+}
+
+export class NumberControl extends TextInputControl<number> {
+    constructor(
+        value: number,
+        id?: string,
+    ) {
+        super(value, id);
+    }
+
+    stringify(value: number): string {
+        return String(value);
+    }
+
+    parse(str: string): number {
+        return parseInt(str, 10);
     }
 }
 
