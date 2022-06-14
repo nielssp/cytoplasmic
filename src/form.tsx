@@ -77,6 +77,7 @@ export abstract class TextInputControl<T> extends Control<T> {
         super(value, id);
     }
 
+    abstract isValid(str: string): boolean;
     abstract stringify(value: T): string;
     abstract parse(str: string): T;
 
@@ -107,7 +108,7 @@ export abstract class TextInputControl<T> extends Control<T> {
         }
     }
 
-    private addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: JSX.Context) {
+    protected addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: JSX.Context) {
         if (!this.inputs.length) {
             input.id = this.id;
         }
@@ -116,26 +117,38 @@ export abstract class TextInputControl<T> extends Control<T> {
         input.value = this.stringify(this.value);
         const focusListener = () => {
             this.value = this.parse(input.value);
+            let mostRecentValue = input.value;
             if (interval == undefined) {
                 interval = window.setInterval(() => {
-                    const parsed = this.parse(input.value);
-                    if (this.value !== parsed) {
-                        this.value = parsed;
+                    if (input.value !== mostRecentValue) {
+                        if (this.isValid(input.value)) {
+                            this.value = this.parse(input.value);
+                        }
+                        mostRecentValue = input.value;
                     }
                 }, 33);
             }
         };
         input.addEventListener('focus', focusListener);
         const clear = () => {
+            input.value = this.stringify(this.value);
             if (interval != undefined) {
                 clearInterval(interval);
                 interval = undefined;
             }
         };
         input.addEventListener('blur', clear);
+        const changeListener = () => {
+            const parsed = this.parse(input.value);
+            if (this.value !== parsed) {
+                this.value = parsed;
+            }
+        };
+        input.addEventListener('change', changeListener);
         context.onDestroy(() => {
             input.removeEventListener('focus', focusListener);
             input.removeEventListener('blur', clear);
+            input.removeEventListener('change', changeListener);
             clear();
         });
         context.onDestroy(this.disabled.getAndObserve(disabled => input.disabled = disabled));
@@ -159,6 +172,10 @@ export class TextControl extends TextInputControl<string> {
         super(value, id);
     }
 
+    isValid(_: string): boolean {
+        return true;
+    }
+
     stringify(value: string): string {
         return value;
     }
@@ -168,7 +185,10 @@ export class TextControl extends TextInputControl<string> {
     }
 }
 
-export class NumberControl extends TextInputControl<number> {
+export class IntControl extends TextInputControl<number> {
+    min = Number.MIN_SAFE_INTEGER;
+    max = Number.MAX_SAFE_INTEGER;
+
     constructor(
         value: number,
         id?: string,
@@ -176,12 +196,28 @@ export class NumberControl extends TextInputControl<number> {
         super(value, id);
     }
 
+    isValid(str: string): boolean {
+        return !!str.match(/[0-9]+/);
+    }
+
     stringify(value: number): string {
         return String(value);
     }
 
     parse(str: string): number {
-        return parseInt(str, 10);
+        const m = str.match(/^[^0-9]*?(-?[0-9]+).*$/);
+        if (m) {
+            return Math.min(this.max, Math.max(this.min, parseInt(m[1], 10)));
+        }
+        return Math.min(this.max, Math.max(this.min, 0));
+    }
+
+    protected addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: JSX.Context) {
+        super.addTextInput(input, context);
+        if (input instanceof HTMLInputElement) {
+            input.min = '' + this.min;
+            input.max = '' + this.max;
+        }
     }
 }
 
