@@ -399,7 +399,7 @@ export function zipWith<T, TOut>(properties: Property<T>[], f: (... values: T[])
 
 
 export class ValueProperty<T> extends Property<T> {
-    private observers: PropertyObserver<T>[] = [];
+    private observers: Set<PropertyObserver<T>> = new Set;
 
     constructor(protected _value: T) {
         super();
@@ -415,21 +415,16 @@ export class ValueProperty<T> extends Property<T> {
 
     set(value: T) {
         this._value = value;
-        for (let observer of this.observers) {
-            observer(value);
-        }
+        this.observers.forEach(observer => observer(value));
     }
 
     observe(observer: PropertyObserver<T>): () => void {
-        this.observers.push(observer);
+        this.observers.add(observer);
         return () => this.unobserve(observer);
     }
 
     unobserve(observer: PropertyObserver<T>): void {
-        const i = this.observers.findIndex(o => o === observer);
-        if (i >= 0) {
-            this.observers.splice(i, 1);
-        }
+        this.observers.delete(observer);
     }
 }
 
