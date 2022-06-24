@@ -180,7 +180,7 @@ export class Emitter<T> {
 }
 
 type PropertyProxyObject<T> = T extends {} ? {
-    [TKey in keyof T]: Property<T[TKey]>;
+    [TKey in keyof T]-?: Property<T[TKey]>;
 } : any;
 
 export abstract class Property<T> {
