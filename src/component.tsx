@@ -433,14 +433,14 @@ export type Input<T> = Property<T>|T;
 export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): ValueProperty<T> {
     if (typeof binding === 'undefined') {
         if (defaultValue instanceof ValueProperty) {
-            return defaultValue;
+            return defaultValue as ValueProperty<T>;
         } else if (defaultValue instanceof Property) {
             return new ValueProperty(defaultValue.value);
         } else {
             return new ValueProperty(defaultValue);
         }
     } else if (binding instanceof ValueProperty) {
-        return binding;
+        return binding as ValueProperty<T>;
     } else if (binding instanceof Property) {
         return new ValueProperty(binding.value);
     } else {
