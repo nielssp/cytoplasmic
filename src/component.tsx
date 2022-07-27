@@ -254,10 +254,12 @@ export abstract class Property<T> {
     }
 
     await(onrejected?: (reason: any) => void): Property<Awaited<T>|undefined> {
+        const result = ref<Awaited<T>>();
+        let previousPromise: T;
         return this.flatMap(promise => {
-            const result = ref<Awaited<T>>();
-            if (promise instanceof Promise) {
+            if (promise !== previousPromise && promise instanceof Promise) {
                 (promise as Promise<Awaited<T>>).then(value => result.value = value, onrejected);
+                previousPromise = promise;
             }
             return result;
         });
