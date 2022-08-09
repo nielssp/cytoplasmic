@@ -578,7 +578,7 @@ export function Deref<T>(props: {
         let property: ValueProperty<T>|undefined;
         let subcontext: Context|undefined;
         const observer = (value: T|undefined) => {
-            if (value) {
+            if (value != undefined) {
                 if (!property) {
                     property = bind(value);
                 } else {
