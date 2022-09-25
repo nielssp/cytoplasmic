@@ -121,14 +121,19 @@ export abstract class TextInputControl<T> extends Control<T> {
             input.id = this.id;
         }
         this.inputs.push(input);
+        let focus = false;
         let interval: number|undefined;
         context.onDestroy(this.getAndObserve(value => {
+            if (focus) {
+                return;
+            }
             const str = this.stringify(value);
             if (str !== input.value) {
                 input.value = str;
             }
         }));
         const focusListener = () => {
+            focus = true;
             this.value = this.parse(input.value);
             let mostRecentValue = input.value;
             if (interval == undefined) {
@@ -144,6 +149,7 @@ export abstract class TextInputControl<T> extends Control<T> {
         };
         input.addEventListener('focus', focusListener);
         const clear = () => {
+            focus = false;
             input.value = this.stringify(this.value);
             if (interval != undefined) {
                 clearInterval(interval);
