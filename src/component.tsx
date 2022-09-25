@@ -399,8 +399,15 @@ export function zipWith<T, TOut>(properties: Property<T>[], f: (... values: T[])
     });
 }
 
+export abstract class ValueProperty<T> extends Property<T> {
+    abstract set value(value: T);
 
-export class ValueProperty<T> extends Property<T> {
+    bimap<T2>(encode: (value: T) => T2, decode: (value: T2) => T): ValueProperty<T2> {
+        return new BimappingProperty(this, encode, decode);
+    }
+}
+
+export class SettableValueProperty<T> extends ValueProperty<T> {
     private observers: Set<PropertyObserver<T>> = new Set;
 
     constructor(protected _value: T) {
@@ -412,10 +419,6 @@ export class ValueProperty<T> extends Property<T> {
     }
 
     set value(value: T) {
-        this.set(value);
-    }
-
-    set(value: T) {
         this._value = value;
         this.observers.forEach(observer => observer(value));
     }
@@ -430,6 +433,43 @@ export class ValueProperty<T> extends Property<T> {
     }
 }
 
+class BimappingProperty<T1, T2> extends ValueProperty<T2> {
+    private observers: [PropertyObserver<T2>, PropertyObserver<T1>][] = [];
+
+    constructor(
+        protected source: ValueProperty<T1>,
+        protected encode: (value: T1) => T2,
+        protected decode: (value: T2) => T1,
+    ) {
+        super();
+    }
+
+    get value(): T2 {
+        return this.encode(this.source.value);
+    }
+
+    set value(value: T2) {
+        this.source.value = this.decode(value);
+    }
+
+    observe(observer: PropertyObserver<T2>): () => void {
+        const sourceObserver = (newValue: T1) => {
+            observer(this.encode(newValue));
+        };
+        this.source.observe(sourceObserver);
+        this.observers.push([observer, sourceObserver]);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: PropertyObserver<T2>): void {
+        const i = this.observers.findIndex(([o, _]) => o === observer);
+        if (i >= 0) {
+            this.source.unobserve(this.observers[i][1]);
+            this.observers.splice(i, 1);
+        }
+    }
+}
+
 export type Input<T> = Property<T>|T;
 
 export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): ValueProperty<T> {
@@ -437,16 +477,16 @@ export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): ValueProper
         if (defaultValue instanceof ValueProperty) {
             return defaultValue as ValueProperty<T>;
         } else if (defaultValue instanceof Property) {
-            return new ValueProperty(defaultValue.value);
+            return new SettableValueProperty(defaultValue.value);
         } else {
-            return new ValueProperty(defaultValue);
+            return new SettableValueProperty(defaultValue);
         }
     } else if (binding instanceof ValueProperty) {
         return binding as ValueProperty<T>;
     } else if (binding instanceof Property) {
-        return new ValueProperty(binding.value);
+        return new SettableValueProperty(binding.value);
     } else {
-        return new ValueProperty(binding);
+        return new SettableValueProperty(binding);
     }
 }
 

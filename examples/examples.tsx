@@ -1,5 +1,5 @@
-import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith, ref, ariaBool } from "../src";
-import { TextControl, Field } from "../src/form";
+import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith, ref, ariaBool, Deref, Unwrap } from "../src";
+import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
 
 import './classic-stylesheets/layout.css';
@@ -76,6 +76,24 @@ function Counter(_props: {}, context: JSX.Context): JSX.Element {
     return <div>The count is {count}</div>;
 }
 
+function TemperatureConverter() {
+    const celcius = new IntControl(5);
+    const fahrenheit = new IntControl(celcius.bimap(
+        c => c * 9 / 5 + 32,
+        f => (f - 32) * 5 / 9,
+    ));
+    return <div class='stack-row spacing align-center'>
+        <Field control={celcius}>
+            <input type='text'/>
+            <label>Celcius =</label>
+        </Field>
+        <Field control={fahrenheit}>
+            <input type='text'/>
+            <label>Fahrenheit</label>
+        </Field>
+    </div>;
+}
+
 const component = <div class='stack-column padding spacing'>
     <div class='stack-row spacing align-center'>
         <Field control={text}>
@@ -116,6 +134,7 @@ const component = <div class='stack-column padding spacing'>
             </Show>
         </Show>
     </div>
+    <h2>Todo list</h2>
     <div class='stack-row align-center spacing'>
         <div>{_n('{n} task', '{n} tasks', {n: tasks.length})}</div>
         <button disabled={selection.undefined} onClick={removeTask}>Remove</button>
@@ -140,6 +159,8 @@ const component = <div class='stack-column padding spacing'>
         <button type='submit' disabled={task.not}>Add</button>
         <button onClick={insertTask} disabled={task.not}>Insert</button>
     </form>
+    <h2>Temperature converter</h2>
+    <TemperatureConverter/>
 </div>;
 
 mount(document.body, component);

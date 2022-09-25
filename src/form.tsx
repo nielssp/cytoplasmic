@@ -1,4 +1,4 @@
-import { Property, bind, ValueProperty, apply } from "./component";
+import { Property, bind, ValueProperty, apply, PropertyObserver, SettableValueProperty } from "./component";
 
 let nextId = 0;
 
@@ -12,12 +12,30 @@ export function createId(prefix: string): string {
 }
 
 export abstract class Control<T> extends ValueProperty<T> {
+    protected source: ValueProperty<T>;
     readonly disabled = bind(false);
     constructor(
-        value: T,
+        value: T|ValueProperty<T>,
         public readonly id: string = createId('control'),
     ) {
-        super(value);
+        super();
+        this.source = bind(value);
+    }
+
+    get value(): T {
+        return this.source.value;
+    }
+
+    set value(value: T) {
+        this.source.value = value;
+    }
+
+    observe(observer: PropertyObserver<T>): () => void {
+        return this.source.observe(observer);
+    }
+
+    unobserve(observer: PropertyObserver<T>): void {
+        this.source.unobserve(observer);
     }
 
     abstract add(element: Node, context: JSX.Context): void;
@@ -26,7 +44,7 @@ export abstract class Control<T> extends ValueProperty<T> {
 export class CheckboxControl extends Control<boolean> {
     private inputs: HTMLElement[] = [];
     constructor(
-        value: boolean,
+        value: boolean|ValueProperty<boolean>,
         id?: string,
     ) {
         super(value, id);
@@ -71,7 +89,7 @@ export class CheckboxControl extends Control<boolean> {
 export abstract class TextInputControl<T> extends Control<T> {
     private inputs: (HTMLInputElement|HTMLTextAreaElement)[] = [];
     constructor(
-        value: T,
+        value: T|ValueProperty<T>,
         id?: string,
     ) {
         super(value, id);
@@ -80,16 +98,6 @@ export abstract class TextInputControl<T> extends Control<T> {
     abstract isValid(str: string): boolean;
     abstract stringify(value: T): string;
     abstract parse(str: string): T;
-
-    set(value: T) {
-        const str = this.stringify(value);
-        this.inputs.forEach(input => {
-            if (str !== input.value) {
-                input.value = str;
-            }
-        });
-        super.set(value);
-    }
 
     add(element: Node, context: JSX.Context) {
         if (!(element instanceof HTMLElement)) {
@@ -114,7 +122,12 @@ export abstract class TextInputControl<T> extends Control<T> {
         }
         this.inputs.push(input);
         let interval: number|undefined;
-        input.value = this.stringify(this.value);
+        context.onDestroy(this.getAndObserve(value => {
+            const str = this.stringify(value);
+            if (str !== input.value) {
+                input.value = str;
+            }
+        }));
         const focusListener = () => {
             this.value = this.parse(input.value);
             let mostRecentValue = input.value;
@@ -166,7 +179,7 @@ export abstract class TextInputControl<T> extends Control<T> {
 
 export class TextControl extends TextInputControl<string> {
     constructor(
-        value: string,
+        value: string|ValueProperty<string>,
         id?: string,
     ) {
         super(value, id);
@@ -190,7 +203,7 @@ export class IntControl extends TextInputControl<number> {
     max = Number.MAX_SAFE_INTEGER;
 
     constructor(
-        value: number,
+        value: number|ValueProperty<number>,
         id?: string,
     ) {
         super(value, id);
@@ -282,7 +295,7 @@ export class RadioControl<T extends string|number|symbol> extends Control<boolea
     }
 }
 
-export class RadioGroup<T extends string|number|symbol> extends ValueProperty<T> {
+export class RadioGroup<T extends string|number|symbol> extends SettableValueProperty<T> {
     readonly disabled = bind(false);
     readonly radios = {} as Record<T, RadioControl<T>>;
     constructor(
@@ -302,17 +315,14 @@ export class RadioGroup<T extends string|number|symbol> extends ValueProperty<T>
 
 export function Field(props: {
     children: JSX.Element|JSX.Element[],
-    value: Property<string>|string,
+    value: ValueProperty<string>|string,
 } | {
     children: JSX.Element|JSX.Element[],
     control: Control<any>,
 }): JSX.Element {
     return context => {
         const children = apply(props.children, context);
-        const control = 'control' in props ? props.control : new TextControl('');
-        if ('value' in props) {
-            // TODO: bind('', props.value).bind(control);
-        }
+        const control = 'control' in props ? props.control : new TextControl(props.value);
         children.forEach(child => {
             control.add(child, context);
             if (child instanceof HTMLElement) {
