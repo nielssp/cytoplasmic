@@ -1,4 +1,4 @@
-import { Property, ZippingProperty } from "./component";
+import { Property, ZippingProperty } from "./property";
 
 export type ContextValue = string|number|Property<string>|Property<number>;
 

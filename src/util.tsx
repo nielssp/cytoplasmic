@@ -1,4 +1,4 @@
-import { Property } from "./component";
+import { Property } from "./property";
 
 export function noDefault<TEvent extends Event>(
     handler?: (this: HTMLElement, ev: TEvent) => void

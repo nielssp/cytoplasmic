@@ -1,4 +1,5 @@
-import { Property, bind, ValueProperty, apply, PropertyObserver, SettableValueProperty } from "./component";
+import { Property, bind, ValueProperty, PropertyObserver, SettableValueProperty } from "./property";
+import { apply } from "./component";
 
 let nextId = 0;
 

@@ -1,4 +1,6 @@
-import { apply, bind, Context, Emitter, Property, ValueProperty } from "./component";
+import { bind, Property, ValueProperty } from "./property";
+import { apply, Context } from "./component";
+import { Emitter } from "./emitter";
 
 export class ListProperty<T> {
     private _items: ValueProperty<T>[] = [];
