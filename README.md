@@ -28,3 +28,9 @@ function Counter() {
     </div>;
 }
 ```
+
+## Examples
+
+- [Counter (7GUIs)](https://codesandbox.io/s/cstk-counter-7guis-jmugil?file=/index.tsx)
+- [Temperature Converter (7GUIs)](https://codesandbox.io/s/cstk-temperature-converter-7guis-o0w7pg?file=/index.tsx)
+
