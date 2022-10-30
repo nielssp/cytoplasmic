@@ -1,5 +1,11 @@
 # cstk changelog
 
+## cstk 0.3.0
+
+New features:
+
+- `x.bimap(encode, decode)` on properties
+
 ## cstk 0.2.0
 
 New features:
