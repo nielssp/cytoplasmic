@@ -1,3 +1,8 @@
+// CSTK
+// Copyright (c) 2022 Niels Sonnich Poulsen (http://nielssp.dk)
+// Licensed under the MIT license. See the LICENSE file or
+// http://opensource.org/licenses/MIT for more information.
+
 export type Observer<T> = (event: T) => any;
 
 export class Emitter<T> {

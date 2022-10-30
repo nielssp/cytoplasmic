@@ -17,6 +17,9 @@
     "dev": "webpack serve --config=webpack.examples.config.js",
     "prepare": "npm run build"
   },
+  "dependencies": {
+    "tsx-dom-types": "^1.0.0"
+  },
   "devDependencies": {
     "css-loader": "^5.2.4",
     "file-loader": "^6.2.0",

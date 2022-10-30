@@ -1,4 +1,9 @@
-import { Property, bind, ValueProperty, PropertyObserver, SettableValueProperty } from "./property";
+// CSTK
+// Copyright (c) 2022 Niels Sonnich Poulsen (http://nielssp.dk)
+// Licensed under the MIT license. See the LICENSE file or
+// http://opensource.org/licenses/MIT for more information.
+
+import { bind, ValueProperty, PropertyObserver, SettableValueProperty } from "./property";
 import { apply } from "./component";
 
 let nextId = 0;
