@@ -5,15 +5,15 @@
 
 import { Property, ZippingProperty } from "./property";
 
-export type ContextValue = string|number|Property<string>|Property<number>;
+export type ParameterValue = string|number|Property<string>|Property<number>;
 
-export function _(msgid: string, context: Record<string, ContextValue> = {}): Property<string> {
-    const sources = Object.values(context).filter(source => source instanceof Property) as Property<any>[];
+export function _(msgid: string, parameters: Record<string, ParameterValue> = {}): Property<string> {
+    const sources = Object.values(parameters).filter(source => source instanceof Property) as Property<any>[];
     return new ZippingProperty(sources, () => {
         let msg = msgid;
         // TODO: translate
-        for (let key in context) {
-            const value = context[key];
+        for (let key in parameters) {
+            const value = parameters[key];
             if (value instanceof Property) {
                 msg = msg.replace(`{${key}}`, '' + value.value);
             } else {
@@ -27,18 +27,18 @@ export function _(msgid: string, context: Record<string, ContextValue> = {}): Pr
 export function _n(
     msgid: string,
     msgidPlural: string,
-    context: Record<string, ContextValue> & {n: number|Property<number>},
+    parameters: Record<string, ParameterValue> & {n: number|Property<number>},
 ): Property<string> {
-    const sources = Object.values(context).filter(source => source instanceof Property) as Property<any>[];
+    const sources = Object.values(parameters).filter(source => source instanceof Property) as Property<any>[];
     return new ZippingProperty(sources, () => {
         let msg = msgid;
-        const n = context.n;
+        const n = parameters.n;
         // TODO: translate
         if (n instanceof Property ? n.value !== 1 && n.value !== -1 : n !== 1 && n !== -1) {
             msg = msgidPlural;
         }
-        for (let key in context) {
-            const value = context[key];
+        for (let key in parameters) {
+            const value = parameters[key];
             if (value instanceof Property) {
                 msg = msg.replace(`{${key}}`, '' + value.value);
             } else {

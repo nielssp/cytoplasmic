@@ -29,6 +29,31 @@ function Counter() {
 }
 ```
 
+## Context values
+
+```tsx
+const Theme = createValue('light');
+
+function App() {
+    return <Theme.Provider value='dark'>
+        <Toolbar/>
+    </Theme.Provider>;
+}
+
+function Toolbar() {
+    return <div>
+        <Button label='Click me'/>
+    </div>;
+}
+
+function Button({label}: {label: string}, context: Context) {
+    const theme = context.use(Theme);
+    return <button class={theme}>
+        {label}
+    </button>;
+}
+```
+
 ## Examples
 
 - [Counter (7GUIs)](https://codesandbox.io/s/cstk-counter-7guis-jmugil?file=/index.tsx)

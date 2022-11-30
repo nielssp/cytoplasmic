@@ -66,7 +66,7 @@ function moveTaskDown() {
     }
 }
 
-function Counter(_props: {}, context: JSX.Context): JSX.Element {
+function Counter(_props: {}, context: Context): JSX.Element {
     const count = bind(0);
     const interval = setInterval(() => {
         count.value++;

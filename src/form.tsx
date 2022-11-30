@@ -5,6 +5,7 @@
 
 import { bind, ValueProperty, PropertyObserver, SettableValueProperty } from "./property";
 import { apply } from "./component";
+import { Context } from "./context";
 
 let nextId = 0;
 
@@ -44,7 +45,7 @@ export abstract class Control<T> extends ValueProperty<T> {
         this.source.unobserve(observer);
     }
 
-    abstract add(element: Node, context: JSX.Context): void;
+    abstract add(element: Node, context: Context): void;
 }
 
 export class CheckboxControl extends Control<boolean> {
@@ -56,7 +57,7 @@ export class CheckboxControl extends Control<boolean> {
         super(value, id);
     }
 
-    add(element: Node, context: JSX.Context) {
+    add(element: Node, context: Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -70,7 +71,7 @@ export class CheckboxControl extends Control<boolean> {
         }
     }
 
-    protected addCheckboxInput(input: HTMLInputElement, context: JSX.Context) {
+    protected addCheckboxInput(input: HTMLInputElement, context: Context) {
         if (!this.inputs.length) {
             input.id = this.id;
         }
@@ -105,7 +106,7 @@ export abstract class TextInputControl<T> extends Control<T> {
     abstract stringify(value: T): string;
     abstract parse(str: string): T;
 
-    add(element: Node, context: JSX.Context) {
+    add(element: Node, context: Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -122,7 +123,7 @@ export abstract class TextInputControl<T> extends Control<T> {
         }
     }
 
-    protected addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: JSX.Context) {
+    protected addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: Context) {
         if (!this.inputs.length) {
             input.id = this.id;
         }
@@ -237,7 +238,7 @@ export class IntControl extends TextInputControl<number> {
         return Math.min(this.max, Math.max(this.min, 0));
     }
 
-    protected addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: JSX.Context) {
+    protected addTextInput(input: HTMLInputElement|HTMLTextAreaElement, context: Context) {
         super.addTextInput(input, context);
         if (input instanceof HTMLInputElement) {
             input.min = '' + this.min;
@@ -257,7 +258,7 @@ export class RadioControl<T extends string|number|symbol> extends Control<boolea
         super(radioValue === radioGroup.value, id);
     }
 
-    add(element: Node, context: JSX.Context) {
+    add(element: Node, context: Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -271,7 +272,7 @@ export class RadioControl<T extends string|number|symbol> extends Control<boolea
         }
     }
 
-    protected addRadioInput(input: HTMLInputElement, context: JSX.Context) {
+    protected addRadioInput(input: HTMLInputElement, context: Context) {
         if (!this.inputs.length) {
             input.id = this.id;
         }

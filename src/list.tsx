@@ -1,11 +1,12 @@
 // CSTK
-// Copyright (c) 2022 Niels Sonnich Poulsen (http://nielssp.dk)
+// Copyrightcontext.destroy(c) 2022 Niels Sonnich Poulsen (http://nielssp.dk)
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
 import { bind, Property, ValueProperty } from "./property";
-import { apply, Context } from "./component";
+import { apply } from "./component";
 import { Emitter } from "./emitter";
+import { Context } from "./context";
 
 export class ListProperty<T> {
     private _items: ValueProperty<T>[] = [];
@@ -88,14 +89,14 @@ export function bindList<T>(initialItems: T[] = []): ListProperty<T> {
 export function For<T>({each, children}: {
     each: ListProperty<T>|Property<T[]>,
     children: (value: Property<T>, index: Property<number>) => JSX.Element
-}, context: JSX.Context): JSX.Element {
+}, context: Context): JSX.Element {
     const marker = document.createComment('<For>');
     let items: [Node[], Context, ValueProperty<number>][] = [];
     if (each instanceof ListProperty) {
         context.onInit(() => {
             each.items.forEach((item, index) => {
                 const nodes: Node[] = [];
-                const subcontext = new Context();
+                const subcontext = new Context(context);
                 const indexProperty = bind(index);
                 apply(children(item, indexProperty), subcontext).forEach(node => {
                     if (!marker.parentElement) {
@@ -110,7 +111,7 @@ export function For<T>({each, children}: {
             context.onDestroy(each.onInsert.observe(({index, item}) => {
                 if (index >= items.length) {
                     const nodes: Node[] = [];
-                    const subcontext = new Context();
+                    const subcontext = new Context(context);
                     const indexProperty = bind(index);
                     apply(children(item, indexProperty), subcontext).forEach(node => {
                         if (!marker.parentElement) {
@@ -130,7 +131,7 @@ export function For<T>({each, children}: {
                         }
                     }
                     const nodes: Node[] = [];
-                    const subcontext = new Context();
+                    const subcontext = new Context(context);
                     const indexProperty = bind(index);
                     apply(children(item, indexProperty), subcontext).forEach(node => {
                         if (!next.parentElement) {
@@ -169,7 +170,7 @@ export function For<T>({each, children}: {
         context.onInit(() => {
             properties.forEach((item, index) => {
                 const nodes: Node[] = [];
-                const subcontext = new Context();
+                const subcontext = new Context(context);
                 const indexProperty = bind(index);
                 apply(children(item, indexProperty), subcontext).forEach(node => {
                     if (!marker.parentElement) {
@@ -198,7 +199,7 @@ export function For<T>({each, children}: {
                     }
                     for (let i = properties.length; i < xs.length; i++) {
                         const nodes: Node[] = [];
-                        const subcontext = new Context();
+                        const subcontext = new Context(context);
                         const property = bind(xs[i]);
                         properties.push(property);
                         const indexProperty = bind(i);

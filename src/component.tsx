@@ -3,10 +3,11 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
+import { Context } from "./context";
 import { bind, Property, ValueProperty } from "./property";
 import { ElementChild } from "./types";
 
-function appendChildren(element: HTMLElement, children: ElementChild[], context: JSX.Context): void {
+function appendChildren(element: HTMLElement, children: ElementChild[], context: Context): void {
     children.forEach(child => {
         if (typeof child === 'string') {
             element.appendChild(document.createTextNode(child));
@@ -34,7 +35,7 @@ function appendChildren(element: HTMLElement, children: ElementChild[], context:
 export type ComponentProps<T> = T & {
     children?: ElementChild|ElementChild[],
 };
-export type Component<T = {}> = (props: ComponentProps<T>, context: JSX.Context) => JSX.Element;
+export type Component<T = {}> = (props: ComponentProps<T>, context: Context) => JSX.Element;
 
 type ElementAttributes<T> = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject> & {
     ref?: ValueProperty<T|undefined>,
@@ -169,7 +170,7 @@ export function flatten(elements: JSX.Element[]|JSX.Element): JSX.Element {
     return elements;
 }
 
-export function apply(elements: JSX.Element[]|JSX.Element, context: JSX.Context): Node[] {
+export function apply(elements: JSX.Element[]|JSX.Element, context: Context): Node[] {
     const result: Node[] = [];
     if (Array.isArray(elements)) {
         elements.forEach(element => {
@@ -191,35 +192,6 @@ export function apply(elements: JSX.Element[]|JSX.Element, context: JSX.Context)
     return result;
 }
 
-export class Context implements JSX.Context {
-    private initialized = false;
-    private destroyed = false;
-    private initializers: (() => void)[] = [];
-    private destructors: (() => void)[] = [];
-
-    onInit(initializer: () => void): void {
-        this.initializers.push(initializer);
-    }
-
-    onDestroy(destructor: () => void): void {
-        this.destructors.push(destructor);
-    }
-
-    init() {
-        if (!this.initialized) {
-            this.initializers.forEach(f => f());
-            this.initialized = true;
-        }
-    }
-
-    destroy() {
-        if (this.initialized && !this.destroyed) {
-            this.destructors.forEach(f => f());
-            this.destroyed = true;
-        }
-    }
-}
-
 export function Show(props: {
     children: JSX.Element[]|JSX.Element,
     when: Property<any>,
@@ -239,7 +211,7 @@ export function Show(props: {
                     return; // shouldn't be possible
                 }
                 const parent = marker.parentElement;
-                subcontext = new Context();
+                subcontext = new Context(context);
                 apply(props.children, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
@@ -288,7 +260,7 @@ export function Deref<T>(props: {
                     return; // shouldn't be possible
                 }
                 const parent = marker.parentElement;
-                subcontext = new Context();
+                subcontext = new Context(context);
                 apply(props.children(property), subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
@@ -334,7 +306,7 @@ export function Unwrap<T>(props: {
                     return; // shouldn't be possible
                 }
                 const parent = marker.parentElement;
-                subcontext = new Context();
+                subcontext = new Context(context);
                 apply(props.children(value), subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
@@ -373,7 +345,7 @@ export function Dynamic<T>(props: T & {
                     return; // shouldn't be possible
                 }
                 const parent = marker.parentElement;
-                subcontext = new Context();
+                subcontext = new Context(context);
                 apply(component(props, subcontext), subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);

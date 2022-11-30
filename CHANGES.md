@@ -1,5 +1,11 @@
 # cstk changelog
 
+## Unreleased
+
+New features:
+
+- `createValue()`
+
 ## cstk 0.3.0
 
 New features:
