@@ -14,6 +14,7 @@ export * from './list';
 export * from './i18n';
 export * from './form';
 export * from './injector';
+export * from './router';
 export * from './util';
 
 declare global {

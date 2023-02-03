@@ -5,6 +5,7 @@
 New features:
 
 - `createValue()`
+- `createRouter()`
 
 ## cstk 0.3.0
 
