@@ -1,6 +1,6 @@
 # cstk changelog
 
-## Unreleased
+## cstk 0.4.0
 
 New features:
 

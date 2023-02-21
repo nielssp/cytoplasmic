@@ -25,9 +25,7 @@ export function createRouter(config: RouterConfig): Router {
         if (typeof path === 'string') {
             path = path.split('/').filter(s => s);
         }
-        if (!path.length) {
-            path = [''];
-        }
+        path.push('');
         let route = config;
         let element: JSX.Element | Promise<JSX.Element> | undefined;
         let catchAll: JSX.Element | Promise<JSX.Element> | undefined;
