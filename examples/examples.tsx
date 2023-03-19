@@ -1,4 +1,4 @@
-import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith, ref, ariaBool, Deref, Unwrap, Context } from "../src";
+import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith, ref, ariaBool, Deref, Unwrap, Context, createRouter, Link } from "../src";
 import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -94,6 +94,65 @@ function TemperatureConverter() {
     </div>;
 }
 
+function RoutingNav() {
+    return <div class='stack-row spacing'>
+        <div>Menu:</div>
+        <Link path=''><a>Dashboard</a></Link>
+        <Link path='users'><a>Users</a></Link>
+        <Link path='lazy'><a>Lazy</a></Link>
+    </div>;
+}
+
+function RoutingDashboard() {
+    return <div>
+        <h3>Dashboard</h3>
+        <p>Welcome to the routing example</p>
+    </div>;
+}
+
+function RoutingUsers() {
+    return <div>
+        <h3>Users</h3>
+        <div>
+            <Link path='users/1'><a>User 1</a></Link>
+        </div>
+        <div>
+            <Link path='users/2'><a>User 2</a></Link>
+        </div>
+    </div>;
+}
+
+function RoutingUser({userId}: {userId: string}) {
+    return <div>
+        <h3>User {userId}</h3>
+        <p>Details for user {userId}</p>
+    </div>;
+}
+
+function RoutingNotFound() {
+    return <div>
+        <h3>Page not found</h3>
+    </div>;
+}
+
+function RoutingExample() {
+    const router = createRouter({
+        '': () => <RoutingDashboard/>,
+        'users': {
+            '': () => <RoutingUsers/>,
+            '*': userId => <RoutingUser userId={userId}/>,
+        },
+        'lazy': () => import('./lazy-route').then(m => <m.LazyRoute/>),
+        '**': () => <RoutingNotFound/>,
+    });
+    return <div class='stack-column spacing'>
+        <router.Provider>
+            <RoutingNav/>
+        </router.Provider>
+        <router.Portal/>
+    </div>;
+}
+
 const component = <div class='stack-column padding spacing'>
     <div class='stack-row spacing align-center'>
         <Field control={text}>
@@ -161,6 +220,8 @@ const component = <div class='stack-column padding spacing'>
     </form>
     <h2>Temperature converter</h2>
     <TemperatureConverter/>
+    <h2>Router</h2>
+    <RoutingExample/>
 </div>;
 
 mount(document.body, component);

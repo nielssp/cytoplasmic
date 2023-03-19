@@ -16,23 +16,32 @@ export type Path = string|string[];
 export interface Router {
     resolve(path: Path): Promise<JSX.Element | undefined>;
     navigate(path: Path): Promise<void>;
-    Portal: (props: {}) => JSX.Element;
+    Portal({}: {}): JSX.Element;
+    Provider({children}: {children: JSX.Element|JSX.Element[]}): JSX.Element;
+    Link(props: {
+        path: Path,
+        children: JSX.Element|JSX.Element[],
+    }): JSX.Element;
 }
 
-export function createRouter(config: RouterConfig): Router {
-    const currentElement = ref<JSX.Element>();
-    async function resolve(path: Path): Promise<JSX.Element | undefined> {
+class HashRouter implements Router {
+    private readonly currentElement = ref<JSX.Element>();
+
+    constructor(private config: RouterConfig) {
+    }
+
+    async resolve(path: Path): Promise<JSX.Element | undefined> {
         if (typeof path === 'string') {
             path = path.split('/').filter(s => s);
         }
         path.push('');
-        let route = config;
+        let route = this.config;
         let element: JSX.Element | Promise<JSX.Element> | undefined;
         let catchAll: JSX.Element | Promise<JSX.Element> | undefined;
         for (let i = 0; i < path.length; i++) {
             const p: string = path[i];
             if ('**' in route) {
-                catchAll = (route as any)['*'](path.slice(i));
+                catchAll = (route as any)['**'](path.slice(i));
             }
             if (p in route) {
                 const r: RouterConfig | (() => JSX.Element | Promise<JSX.Element>) = (route as any)[p]
@@ -45,7 +54,9 @@ export function createRouter(config: RouterConfig): Router {
             } else if ('*' in route) {
                 const r: RouterConfig | JSX.Element | Promise<JSX.Element> = (route as any)['*'](p);
                 if (typeof r === 'function' || r instanceof Promise) {
-                    element = r;
+                    if (i === path.length - 2) {
+                        element = r;
+                    }
                     break;
                 } else {
                     route = r;
@@ -59,9 +70,10 @@ export function createRouter(config: RouterConfig): Router {
         }
         return element;
     }
-    async function navigate(path: Path): Promise<void> {
-        currentElement.value = await resolve(path);
-        if (!currentElement.value) {
+
+    async navigate(path: Path): Promise<void> {
+        this.currentElement.value = await this.resolve(path);
+        if (!this.currentElement.value) {
             throw new Error(`Route not found for path: ${path}`);
         }
         const pathString = pathToString(path);
@@ -69,19 +81,8 @@ export function createRouter(config: RouterConfig): Router {
             path
         }, document.title, `#${pathString}`);
     }
-    async function onPopState(event: PopStateEvent) {
-        if (event.state?.path) {
-            currentElement.value = await resolve(event.state.path);
-        }
-    }
-    async function onHashChange() {
-        if (location.hash) {
-            currentElement.value = await resolve(location.hash.replace(/^#/, ''));
-        } else {
-            currentElement.value = await resolve('');
-        }
-    }
-    function Portal({}: {}): JSX.Element {
+
+    readonly Portal = ({}: {}): JSX.Element => {
         return context => {
             const marker = document.createComment('<Router.Portal>');
             const childNodes: Node[] = [];
@@ -96,16 +97,31 @@ export function createRouter(config: RouterConfig): Router {
                     return;
                 }
                 const parent = marker.parentElement;
-                subcontext = context.provide(ActiveRouter, router);
+                subcontext = context.provide(ActiveRouter, this);
                 apply(element, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
                 });
                 subcontext.init();
             };
+
+            const onPopState = async (event: PopStateEvent) => {
+                if (event.state?.path) {
+                    this.currentElement.value = await this.resolve(event.state.path);
+                }
+            };
+
+            const onHashChange = async () => {
+                if (location.hash) {
+                    this.currentElement.value = await this.resolve(location.hash.replace(/^#/, ''));
+                } else {
+                    this.currentElement.value = await this.resolve('');
+                }
+            };
+
             context.onInit(() => {
-                currentElement.value = undefined;
-                currentElement.getAndObserve(observer);
+                this.currentElement.value = undefined;
+                this.currentElement.getAndObserve(observer);
                 window.addEventListener('popstate', onPopState);
                 window.addEventListener('hashchange', onHashChange);
                 onHashChange();
@@ -113,16 +129,49 @@ export function createRouter(config: RouterConfig): Router {
             context.onDestroy(() => {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
                 childNodes.splice(0);
-                currentElement.unobserve(observer);
+                this.currentElement.unobserve(observer);
                 window.removeEventListener('popstate', onPopState);
                 window.removeEventListener('hashchange', onHashChange);
                 subcontext?.destroy();
             });
             return marker;
         };
-    }
-    const router = {resolve, navigate, Portal};
-    return router;
+    };
+
+    Provider = ({children}: {children: JSX.Element|JSX.Element[]}) => {
+        return <ActiveRouter.Provider value={this}>
+            {children}
+        </ActiveRouter.Provider>;
+    };
+
+    Link = (props: {
+        path: Path,
+        children: JSX.Element|JSX.Element[],
+    }): JSX.Element => {
+        const onClick = (event: MouseEvent) => {
+            event.preventDefault();
+            this.navigate(props.path);
+        };
+        return context => {
+            const children = apply(props.children, context);
+            children.forEach(child => {
+                if (child instanceof HTMLAnchorElement) {
+                    child.href = '#' + pathToString(props.path);
+                    context.onInit(() => {
+                        child.addEventListener('click', onClick);
+                    });
+                    context.onDestroy(() => {
+                        child.removeEventListener('click', onClick);
+                    });
+                }
+            });
+            return children;
+        };
+    };
+}
+
+export function createRouter(config: RouterConfig): Router {
+    return new HashRouter(config);
 }
 
 export function pathToString(path: Path): string {
@@ -134,17 +183,13 @@ export function pathToString(path: Path): string {
 
 export const ActiveRouter = createValue<Router|undefined>(undefined);
 
-export function Link({path, children}: {
+export function Link(props: {
     path: Path,
-    children: ElementChild,
+    children: JSX.Element|JSX.Element[],
 }, context: Context) {
     const router = context.use(ActiveRouter);
     if (!router) {
         return <span>!NO ROUTER!</span>
     }
-    function onClick(event: MouseEvent) {
-        event.preventDefault();
-        router?.navigate(path);
-    }
-    return <a href={'#' + pathToString(path)} onClick={onClick}>{children}</a>
+    return router.Link(props);
 }
