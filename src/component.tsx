@@ -327,6 +327,53 @@ export function Unwrap<T>(props: {
     };
 }
 
+export function Lazy(props: {
+    children: () => Promise<JSX.Element>
+    else?: JSX.Element,
+    onError?: (error: any) => void,
+}): JSX.Element {
+    return context => {
+        const marker = document.createComment('<Lazy>');
+        const childNodes: Node[] = [];
+        let subcontext: Context|undefined;
+        const setElement = (element: JSX.Element) => {
+            if (subcontext) {
+                childNodes.forEach(node => node.parentElement?.removeChild(node));
+                childNodes.splice(0);
+                subcontext.destroy();
+                subcontext = undefined;
+            }
+            if (!marker.parentElement) {
+                return; // shouldn't be possible
+            }
+            const parent = marker.parentElement;
+            subcontext = new Context(context);
+            apply(element, subcontext).forEach(node => {
+                parent.insertBefore(node, marker);
+                childNodes.push(node);
+            });
+            subcontext.init();
+        };
+        context.onInit(() => {
+            if (props.else) {
+                setElement(props.else);
+            }
+            props.children().then(element => {
+                setElement(element);
+            }, error => {
+                console.error('Failed loading lazy component:', error);
+                props.onError?.(error);
+            });
+        });
+        context.onDestroy(() => {
+            childNodes.forEach(node => node.parentElement?.removeChild(node));
+            childNodes.splice(0);
+            subcontext?.destroy();
+        });
+        return marker;
+    };
+}
+
 export function Dynamic<T>(props: T & {
     component: Property<Component<T>|undefined>,
 }): JSX.Element {
@@ -365,7 +412,6 @@ export function Dynamic<T>(props: T & {
         return marker;
     };
 }
-
 
 export function Style(props: {
     children: JSX.Element[]|JSX.Element

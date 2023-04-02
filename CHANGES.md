@@ -1,5 +1,11 @@
 # cstk changelog
 
+## Unreleased
+
+New features:
+
+- `<Lazy>`
+
 ## cstk 0.4.0
 
 New features:
