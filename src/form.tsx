@@ -89,7 +89,7 @@ export class CheckboxControl extends Control<boolean> {
     }
 
     blur() {
-        this.inputs.length && this.inputs[0].focus();
+        this.inputs.length && this.inputs[0].blur();
     }
 }
 
@@ -180,7 +180,7 @@ export abstract class TextInputControl<T> extends Control<T> {
     }
 
     blur() {
-        this.inputs.length && this.inputs[0].focus();
+        this.inputs.length && this.inputs[0].blur();
     }
 }
 
@@ -298,7 +298,7 @@ export class RadioControl<T extends string|number|symbol> extends Control<boolea
     }
 
     blur() {
-        this.inputs.length && this.inputs[0].focus();
+        this.inputs.length && this.inputs[0].blur();
     }
 }
 
