@@ -37,6 +37,10 @@ export abstract class Control<T> extends ValueProperty<T> {
         this.source.value = value;
     }
 
+    update(mutator: (value: T) => void): void {
+        this.source.update(mutator);
+    }
+
     observe(observer: PropertyObserver<T>): () => void {
         return this.source.observe(observer);
     }

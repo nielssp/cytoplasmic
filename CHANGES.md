@@ -1,5 +1,11 @@
 # cstk changelog
 
+## cstk 0.5.3
+
+New features:
+
+- `property.update()`
+
 ## cstk 0.5.0
 
 New features:
