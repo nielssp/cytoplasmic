@@ -41,6 +41,10 @@ export abstract class Control<T> extends ValueProperty<T> {
         this.source.update(mutator);
     }
 
+    updateDefined(mutator: (value: NonNullable<T>) => void): void {
+        this.source.updateDefined(mutator);
+    }
+
     observe(observer: PropertyObserver<T>): () => void {
         return this.source.observe(observer);
     }

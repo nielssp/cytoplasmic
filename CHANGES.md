@@ -1,5 +1,11 @@
 # cstk changelog
 
+## cstk 0.5.4
+
+New features:
+
+- `property.updateDefined()`
+
 ## cstk 0.5.3
 
 New features:

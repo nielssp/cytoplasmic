@@ -231,6 +231,7 @@ export function zipWith<T, TOut>(properties: Property<T>[], f: (... values: T[])
 export abstract class ValueProperty<T> extends Property<T> {
     abstract set value(value: T);
     abstract update(mutator: (value: T) => void): void;
+    abstract updateDefined(mutator: (value: NonNullable<T>) => void): void;
 
     bimap<T2>(encode: (value: T) => T2, decode: (value: T2) => T): ValueProperty<T2> {
         return new BimappingProperty(this, encode, decode);
@@ -256,6 +257,13 @@ export class SettableValueProperty<T> extends ValueProperty<T> {
     update(mutator: (value: T) => void): void {
         mutator(this._value);
         this.observers.forEach(observer => observer(this._value));
+    }
+
+    updateDefined(mutator: (value: NonNullable<T>) => void): void {
+        if (this._value) {
+            mutator(this._value);
+            this.observers.forEach(observer => observer(this._value));
+        }
     }
 
     observe(observer: PropertyObserver<T>): () => void {
@@ -291,6 +299,14 @@ class BimappingProperty<T1, T2> extends ValueProperty<T2> {
         const value = this.value;
         mutator(value);
         this.value = value;
+    }
+
+    updateDefined(mutator: (value: NonNullable<T2>) => void): void {
+        const value = this.value;
+        if (value) {
+            mutator(value);
+            this.value = value;
+        }
     }
 
     observe(observer: PropertyObserver<T2>): () => void {
