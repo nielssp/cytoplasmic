@@ -1,5 +1,15 @@
 # cstk changelog
 
+## cstk 0.5.5
+
+Fixed issues:
+
+- null values not handled in Deref or Unwrap
+
+New features:
+
+- `property.toPromise()`
+
 ## cstk 0.5.4
 
 New features:

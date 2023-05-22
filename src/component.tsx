@@ -38,7 +38,7 @@ export type ComponentProps<T> = T & {
 export type Component<T = {}> = (props: ComponentProps<T>, context: Context) => JSX.Element;
 
 type ElementAttributes<T> = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject> & {
-    ref?: ValueProperty<T|undefined>,
+    ref?: ValueProperty<T | undefined>,
 };
 
 export function createElement<TElem extends keyof HTMLElementTagNameMap>(name: TElem, properties: ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChild[]): JSX.Element;
@@ -239,15 +239,15 @@ export function Show(props: {
 
 export function Deref<T>(props: {
     children: (value: Property<T>) => JSX.Element
-    ref: Property<T|undefined>,
+    ref: Property<T | undefined | null>,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Deref>');
         const childNodes: Node[] = [];
-        let property: ValueProperty<T>|undefined;
-        let subcontext: Context|undefined;
-        const observer = (value: T|undefined) => {
-            if (value != undefined) {
+        let property: ValueProperty<T> | undefined;
+        let subcontext: Context | undefined;
+        const observer = (value: T | undefined | null) => {
+            if (value !== undefined && value !== null) {
                 if (!property) {
                     property = bind(value);
                 } else {
@@ -288,20 +288,20 @@ export function Deref<T>(props: {
 
 export function Unwrap<T>(props: {
     children: (value: T) => JSX.Element
-    from: Property<T|undefined>,
+    from: Property<T | undefined | null>,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Unwrap>');
         const childNodes: Node[] = [];
-        let subcontext: Context|undefined;
-        const observer = (value: T|undefined) => {
+        let subcontext: Context | undefined;
+        const observer = (value: T | undefined | null) => {
             if (subcontext) {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
                 childNodes.splice(0);
                 subcontext.destroy();
                 subcontext = undefined;
             }
-            if (value) {
+            if (value !== undefined && value !== null) {
                 if (!marker.parentElement) {
                     return; // shouldn't be possible
                 }
@@ -335,7 +335,7 @@ export function Lazy(props: {
     return context => {
         const marker = document.createComment('<Lazy>');
         const childNodes: Node[] = [];
-        let subcontext: Context|undefined;
+        let subcontext: Context | undefined;
         const setElement = (element: JSX.Element) => {
             if (subcontext) {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
@@ -375,12 +375,12 @@ export function Lazy(props: {
 }
 
 export function Dynamic<T>(props: T & {
-    component: Property<Component<T>|undefined>,
+    component: Property<Component<T> | undefined>,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Dynamic>');
         const childNodes: Node[] = [];
-        let subcontext: Context|undefined;
+        let subcontext: Context | undefined;
         const observer = (component?: Component<T>) => {
             if (subcontext) {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));

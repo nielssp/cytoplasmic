@@ -34,6 +34,21 @@ export abstract class Property<T> {
         return new FlatMappingProperty(this, f);
     }
 
+    toPromise(): Promise<NonNullable<T>> {
+        if (this.value != undefined) {
+            return Promise.resolve(this.value);
+        }
+        return new Promise((resolve) => {
+            const observer = (value: T) => {
+                if (value != undefined) {
+                    this.unobserve(observer);
+                    resolve(value);
+                }
+            };
+            this.observe(observer);
+        });
+    }
+
     get not(): Property<boolean> {
         return this.map(x => !x);
     }
@@ -260,7 +275,7 @@ export class SettableValueProperty<T> extends ValueProperty<T> {
     }
 
     updateDefined(mutator: (value: NonNullable<T>) => void): void {
-        if (this._value) {
+        if (this._value !== undefined && this._value !== null) {
             mutator(this._value);
             this.observers.forEach(observer => observer(this._value));
         }
