@@ -345,7 +345,7 @@ class BimappingProperty<T1, T2> extends ValueProperty<T2> {
 export type Input<T> = Property<T>|T;
 
 export function bind<T>(defaultValue: Input<T>, binding?: Input<T>): ValueProperty<T> {
-    if (typeof binding === 'undefined') {
+    if (binding === undefined || binding === null) {
         if (defaultValue instanceof ValueProperty) {
             return defaultValue as ValueProperty<T>;
         } else if (defaultValue instanceof Property) {
