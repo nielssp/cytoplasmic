@@ -7,10 +7,11 @@ import { Context } from './context';
 import { IntrinsicElementsHTML } from './types';
 
 export * from './emitter';
-export * from './property';
+export * from './cell';
 export * from './component';
 export * from './context';
-export * from './list';
+export * from './array';
+export * from './for';
 export * from './i18n';
 export * from './form';
 export * from './injector';

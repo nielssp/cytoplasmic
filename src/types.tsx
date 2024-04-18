@@ -4,21 +4,21 @@
 // http://opensource.org/licenses/MIT for more information.
 
 import { EventAttributes, HTMLAttributes } from "tsx-dom-types";
-import { Property, ValueProperty } from "./property";
+import { Cell, MutRefCell } from "./cell";
 
-export type ElementChild = HTMLElement|string|number|Property<string>|Property<number>|JSX.Element|ElementChild[];
+export type ElementChild = HTMLElement|string|number|Cell<string>|Cell<number>|JSX.Element|ElementChild[];
 
 export type IntrinsicElementsHTML = {
     [TKey in keyof HTMLElementTagNameMap]?: EventAttributes<HTMLElementTagNameMap[TKey]> & ReactiveHTMLAttributes & {
-        ref?: ValueProperty<HTMLElementTagNameMap[TKey]|undefined>;
+        ref?: MutRefCell<HTMLElementTagNameMap[TKey]>;
         children?: ElementChild[]|ElementChild;
     }
 };
 
-type Attribute<T> = T|Property<T>;
+type Attribute<T> = T | Cell<T>;
 
 type StyleAttribute = Attribute<string | {
-    [TKey in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[TKey]|Property<CSSStyleDeclaration[TKey]>
+    [TKey in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[TKey]|Cell<CSSStyleDeclaration[TKey]>
 }>;
 
 type ClassAttribute = Attribute<string> | Record<string, Attribute<boolean>>;

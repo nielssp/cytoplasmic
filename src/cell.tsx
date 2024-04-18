@@ -7,7 +7,6 @@ export type CellValue<T> = T extends Cell<infer TValue> ? TValue : never;
 
 export type CellObserver<T> = (newValue: T) => any;
 
-
 type CellProxyObject<T> = T extends {} ? {
     [TKey in keyof T]-?: Cell<T[TKey]>;
 } : any;
@@ -110,7 +109,7 @@ export abstract class Cell<T> {
     }
 }
 
-export class ConstCell<T> extends Cell<T> {
+class ConstCell<T> extends Cell<T> {
     constructor(private _value: T) {
         super();
     }
@@ -125,7 +124,7 @@ export class ConstCell<T> extends Cell<T> {
     }
 }
 
-export class MappingCell<TIn, TOut> extends Cell<TOut> {
+class MappingCell<TIn, TOut> extends Cell<TOut> {
     private observers: [CellObserver<TOut>, CellObserver<TIn>][] = [];
 
     constructor(protected source: Cell<TIn>, protected f: (value: TIn) => TOut) {
@@ -160,7 +159,7 @@ interface FlatMapObserver<TIn, TOut> {
     intermediate: Cell<TOut>;
 }
 
-export class FlatMappingCell<TIn, TOut> extends Cell<TOut> {
+class FlatMappingCell<TIn, TOut> extends Cell<TOut> {
     private observers: FlatMapObserver<TIn, TOut>[] = [];
 
     constructor(protected source: Cell<TIn>, protected f: (value: TIn) => Cell<TOut>) {
@@ -199,7 +198,7 @@ export class FlatMappingCell<TIn, TOut> extends Cell<TOut> {
     }
 }
 
-export class ZippingCell<T> extends Cell<T> {
+class ZippingCell<T> extends Cell<T> {
     private observers: [CellObserver<T>, CellObserver<any>][] = [];
 
     constructor(private sources: Cell<any>[], private apply: () => T) {
@@ -272,7 +271,7 @@ export abstract class MutCell<T> extends Cell<T> {
     }
 }
 
-export class SettableMutCell<T> extends MutCell<T> {
+export class MutCellImpl<T> extends MutCell<T> {
     private observers: Set<CellObserver<T>> = new Set;
 
     constructor(protected _value: T) {
@@ -380,9 +379,9 @@ export function cell<T>(initialValue: Input<T>): MutCell<T> {
     if (initialValue instanceof MutCell) {
         return initialValue as MutCell<T>;
     } else if (initialValue instanceof Cell) {
-        return new SettableMutCell(initialValue.value);
+        return new MutCellImpl(initialValue.value);
     } else {
-        return new SettableMutCell(initialValue);
+        return new MutCellImpl(initialValue);
     }
 }
 

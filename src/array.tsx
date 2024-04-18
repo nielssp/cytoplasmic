@@ -13,44 +13,30 @@ export interface CellIterable<TValue, TKey> {
     ): () => void;
 }
 
-export class CellArray<T> implements CellIterable<Cell<T>, Cell<number>> {
-    private readonly cells: MutCell<MutCell<T>[]> = cell(this.initialItems.map(item => cell(item)));
+export class CellArray<TItem> implements CellIterable<Cell<TItem>, void> {
+    private readonly cells: MutCell<MutCell<TItem>[]> = cell(this.initialItems.map(item => cell(item)));
     readonly length = this.cells.map(cells => cells.length);
-    readonly onInsert = new Emitter<{index: number, item: Cell<T>}>();
+    readonly onInsert = new Emitter<{index: number, item: Cell<TItem>}>();
     readonly onRemove = new Emitter<number>();
 
     constructor(
-        private initialItems: T[],
+        private initialItems: TItem[],
     ) {
     }
 
-    get items(): MutCell<T>[] {
+    get items(): MutCell<TItem>[] {
         return this.cells.value;
     }
 
     observe(
-        insert: (index: number, item: Cell<T>, key: Cell<number>) => void,
+        insert: (index: number, item: Cell<TItem>, key: void) => void,
         remove: (index: number) => void,
     ): () => void {
-        const indices = this.cells.value.map((_, index) => cell(index));
-        this.cells.value.forEach((cell, index) => insert(index, cell, indices[index]));
-        const unobserveInsert = this.onInsert.observe(({index ,item}) => {
-            const indexCell = cell(index);
-            if (index >= indices.length) {
-                indices.push(indexCell);
-            } else {
-                indices.splice(index, 0, indexCell);
-                for (let i = index + 1; i < indices.length; i++) {
-                    indices[i].value = i;
-                }
-            }
-            insert(index, item, indexCell);
+        this.cells.value.forEach((cell, index) => insert(index, cell));
+        const unobserveInsert = this.onInsert.observe(({index, item}) => {
+            insert(index, item);
         });
         const unobserveRemove = this.onRemove.observe(index => {
-            indices.splice(index, 1);
-            for (let i = index; i < indices.length; i++) {
-                indices[i].value = i;
-            }
             remove(index);
         });
         return () => {
@@ -59,21 +45,29 @@ export class CellArray<T> implements CellIterable<Cell<T>, Cell<number>> {
         };
     }
 
-    find(predicate: (item: T, index: number) => boolean): MutCell<T> | undefined {
+    find(predicate: (item: TItem, index: number) => boolean): MutCell<TItem> | undefined {
         return this.cells.value.find((item, index) => predicate(item.value, index));
     }
 
-    insert(index: number, item: T): void {
+    insert(index: number, item: TItem): void {
         const c = cell(item);
         this.cells.update(cells => cells.splice(index, 0, c));
         this.onInsert.emit({index, item: c});
     }
 
-    update(index: number, item: T): void {
+    get(index: number): TItem | undefined {
+        return this.cells.value[index]?.value;
+    }
+
+    set(index: number, item: TItem): void {
         this.cells.value[index].value = item;
     }
 
-    updateAll(items: T[]) {
+    update<T>(index: number, mutator: (value: TItem) => T): T | undefined {
+        return this.cells.value[index]?.update(mutator);
+    }
+
+    replaceAll(items: TItem[]) {
         if (items.length < this.cells.value.length) {
             while (this.cells.value.length > items.length) {
                 this.remove(this.cells.value.length - 1);
@@ -87,18 +81,18 @@ export class CellArray<T> implements CellIterable<Cell<T>, Cell<number>> {
         }
     }
 
-    push(item: T): void {
+    push(item: TItem): void {
         const index = this.length.value;
         const c = cell(item);
         this.cells.value.push(c);
         this.onInsert.emit({index, item: c});
     }
 
-    pushAll(items: T[]): void {
+    pushAll(items: TItem[]): void {
         items.forEach(item => this.push(item));
     }
 
-    remove(index: number): T | undefined {
+    remove(index: number): TItem | undefined {
         if (index >= 0 && index < this.cells.value.length) {
             const removed = this.cells.update(cells => cells.splice(index, 1)[0]);
             this.onRemove.emit(index);
@@ -106,7 +100,7 @@ export class CellArray<T> implements CellIterable<Cell<T>, Cell<number>> {
         }
     }
 
-    removeIf(predicate: (item: T, index: number) => boolean): void {
+    removeIf(predicate: (item: TItem, index: number) => boolean): void {
         for (let i = 0; i < this.cells.value.length; i++) {
             if (predicate(this.cells.value[i].value, i)) {
                 this.cells.update(cells => cells.splice(i, 1))
@@ -121,6 +115,10 @@ export class CellArray<T> implements CellIterable<Cell<T>, Cell<number>> {
             this.remove(this.cells.value.length - 1);
         }
     }
+}
+
+export function cellArray<T>(initialItems: T[] = []): CellArray<T> {
+    return new CellArray(initialItems);
 }
 
 export class CellMap<TKey, TValue> implements CellIterable<Cell<TValue>, TKey> {

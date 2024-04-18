@@ -3,8 +3,8 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
+import { Cell, Input, MutCell, MutRefCell, RefCell, cell, input } from "./cell";
 import { Context } from "./context";
-import { bind, Property, ValueProperty } from "./property";
 import { ElementChild } from "./types";
 
 function appendChildren(element: HTMLElement, children: ElementChild[], context: Context): void {
@@ -15,7 +15,7 @@ function appendChildren(element: HTMLElement, children: ElementChild[], context:
             element.appendChild(document.createTextNode('' + child));
         } else if (Array.isArray(child)) {
             appendChildren(element, child, context);
-        } else if (child instanceof Property) {
+        } else if (child instanceof Cell) {
             const text = document.createTextNode('' + child.value);
             const unobserve = child.observe((value: string|number) => {
                 text.textContent = '' + value;
@@ -37,8 +37,8 @@ export type ComponentProps<T> = T & {
 };
 export type Component<T = {}> = (props: ComponentProps<T>, context: Context) => JSX.Element;
 
-type ElementAttributes<T> = Record<string, string|number|boolean|Property<string>|Property<number>|Property<boolean>|EventListenerOrEventListenerObject> & {
-    ref?: ValueProperty<T | undefined>,
+type ElementAttributes<T> = Record<string, string|number|boolean|Cell<string>|Cell<number>|Cell<boolean>|EventListenerOrEventListenerObject> & {
+    ref?: MutRefCell<T>,
 };
 
 export function createElement<TElem extends keyof HTMLElementTagNameMap>(name: TElem, properties: ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChild[]): JSX.Element;
@@ -60,7 +60,7 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                                 e.removeEventListener(eventName, value as EventListenerOrEventListenerObject);
                             });
                         } else if (prop === 'style') {
-                            if (value instanceof Property) {
+                            if (value instanceof Cell) {
                                 context.onDestroy(value.getAndObserve((value: string|number|boolean|object) => {
                                     if (typeof value === 'object') {
                                         for (let key in value) {
@@ -76,7 +76,7 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                                 for (let key in value) {
                                     if (value.hasOwnProperty(key)) {
                                         const declValue = (value as any)[key as any] as any;
-                                        if (declValue instanceof Property) {
+                                        if (declValue instanceof Cell) {
                                             context.onDestroy(declValue.getAndObserve((declValue: any) => {
                                                 e.style[key as any] = declValue;
                                             }));
@@ -89,7 +89,7 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                                 e.setAttribute('style', '' + value);
                             }
                         } else if (prop === 'class') {
-                            if (value instanceof Property) {
+                            if (value instanceof Cell) {
                                 context.onDestroy(value.getAndObserve((value: string|number|boolean|object) => {
                                     e.setAttribute('class', '' + value);
                                 }));
@@ -97,7 +97,7 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                                 for (let key in value) {
                                     if (value.hasOwnProperty(key)) {
                                         const declValue = (value as any)[key as any] as any;
-                                        if (declValue instanceof Property) {
+                                        if (declValue instanceof Cell) {
                                             context.onDestroy(declValue.getAndObserve((declValue: any) => {
                                                 if (declValue) {
                                                     e.classList.add(key as any);
@@ -116,10 +116,10 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                                 e.setAttribute('class', '' + value);
                             }
                         } else if (prop === 'ref') {
-                            if (value instanceof ValueProperty) {
+                            if (value instanceof MutCell) {
                                 value.value = e;
                             }
-                        } else if (value instanceof Property) {
+                        } else if (value instanceof Cell) {
                             const observer = (value: string|number|boolean) => {
                                 if (value === true) {
                                     e.setAttribute(prop, prop);
@@ -194,8 +194,10 @@ export function apply(elements: JSX.Element[]|JSX.Element, context: Context): No
 
 export function Show(props: {
     children: JSX.Element[]|JSX.Element,
-    when: Property<any>,
+    when: Input<any>,
+    else?: JSX.Element[]|JSX.Element,
 }): JSX.Element {
+    const when = input(props.when);
     return context => {
         const marker = document.createComment('<Show>');
         const childNodes: Node[] = [];
@@ -206,31 +208,45 @@ export function Show(props: {
             if (condition === previous) {
                 return;
             }
+            if (!marker.parentElement) {
+                return; // shouldn't be possible
+            }
+            const parent = marker.parentElement;
             if (condition) {
-                if (!marker.parentElement) {
-                    return; // shouldn't be possible
+                if (subcontext) {
+                    childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
+                    subcontext.destroy();
                 }
-                const parent = marker.parentElement;
                 subcontext = new Context(context);
                 apply(props.children, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
                 });
                 subcontext.init();
-            } else if (previous && subcontext) {
-                childNodes.forEach(node => node.parentElement?.removeChild(node));
-                childNodes.splice(0);
-                subcontext.destroy();
+            } else {
+                if (subcontext) {
+                    childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
+                    subcontext.destroy();
+                    subcontext = undefined;
+                }
+                if (props.else) {
+                    subcontext = new Context(context);
+                    apply(props.else, subcontext).forEach(node => {
+                        parent.insertBefore(node, marker);
+                        childNodes.push(node);
+                    });
+                    subcontext.init();
+                }
             }
             previous = condition;
         };
         context.onInit(() => {
-            props.when.getAndObserve(observer);
+            when.getAndObserve(observer);
         });
         context.onDestroy(() => {
             childNodes.forEach(node => node.parentElement?.removeChild(node));
             childNodes.splice(0);
-            props.when.unobserve(observer);
+            when.unobserve(observer);
             subcontext?.destroy();
         });
         return marker;
@@ -238,39 +254,56 @@ export function Show(props: {
 }
 
 export function Deref<T>(props: {
-    children: (value: Property<T>) => JSX.Element
-    ref: Property<T | undefined | null>,
+    children: (value: Cell<T>) => JSX.Element
+    ref: Cell<T | undefined | null>,
+    else?: JSX.Element[]|JSX.Element,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Deref>');
         const childNodes: Node[] = [];
-        let property: ValueProperty<T> | undefined;
+        let property: MutCell<T> | undefined;
+        let present = false;
         let subcontext: Context | undefined;
         const observer = (value: T | undefined | null) => {
+            if (!marker.parentElement) {
+                return; // shouldn't be possible
+            }
+            const parent = marker.parentElement;
             if (value !== undefined && value !== null) {
                 if (!property) {
-                    property = bind(value);
+                    property = cell(value);
                 } else {
                     property.value = value;
                 }
-                if (subcontext) {
+                if (present) {
                     return;
                 }
-                if (!marker.parentElement) {
-                    return; // shouldn't be possible
+                present = true;
+                if (subcontext) {
+                    childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
+                    subcontext.destroy();
                 }
-                const parent = marker.parentElement;
                 subcontext = new Context(context);
                 apply(props.children(property), subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
                 });
                 subcontext.init();
-            } else if (subcontext) {
-                childNodes.forEach(node => node.parentElement?.removeChild(node));
-                childNodes.splice(0);
-                subcontext.destroy();
-                subcontext = undefined;
+            } else {
+                present = false;
+                if (subcontext) {
+                    childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
+                    subcontext.destroy();
+                    subcontext = undefined;
+                }
+                if (props.else) {
+                    subcontext = new Context(context);
+                    apply(props.else, subcontext).forEach(node => {
+                        parent.insertBefore(node, marker);
+                        childNodes.push(node);
+                    });
+                    subcontext.init();
+                }
             }
         };
         context.onInit(() => {
@@ -288,7 +321,8 @@ export function Deref<T>(props: {
 
 export function Unwrap<T>(props: {
     children: (value: T) => JSX.Element
-    from: Property<T | undefined | null>,
+    from: Cell<T | undefined | null>,
+    else?: JSX.Element[]|JSX.Element,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Unwrap>');
@@ -301,13 +335,20 @@ export function Unwrap<T>(props: {
                 subcontext.destroy();
                 subcontext = undefined;
             }
+            if (!marker.parentElement) {
+                return; // shouldn't be possible
+            }
+            const parent = marker.parentElement;
             if (value !== undefined && value !== null) {
-                if (!marker.parentElement) {
-                    return; // shouldn't be possible
-                }
-                const parent = marker.parentElement;
                 subcontext = new Context(context);
                 apply(props.children(value), subcontext).forEach(node => {
+                    parent.insertBefore(node, marker);
+                    childNodes.push(node);
+                });
+                subcontext.init();
+            } else if (props.else) {
+                subcontext = new Context(context);
+                apply(props.else, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
                 });
@@ -338,8 +379,7 @@ export function Lazy(props: {
         let subcontext: Context | undefined;
         const setElement = (element: JSX.Element) => {
             if (subcontext) {
-                childNodes.forEach(node => node.parentElement?.removeChild(node));
-                childNodes.splice(0);
+                childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
                 subcontext.destroy();
                 subcontext = undefined;
             }
@@ -375,7 +415,8 @@ export function Lazy(props: {
 }
 
 export function Dynamic<T>(props: T & {
-    component: Property<Component<T> | undefined>,
+    component: RefCell<Component<T>>,
+    else?: JSX.Element[]|JSX.Element,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Dynamic>');
@@ -383,17 +424,23 @@ export function Dynamic<T>(props: T & {
         let subcontext: Context | undefined;
         const observer = (component?: Component<T>) => {
             if (subcontext) {
-                childNodes.forEach(node => node.parentElement?.removeChild(node));
-                childNodes.splice(0);
+                childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
                 subcontext.destroy();
             }
+            if (!marker.parentElement) {
+                return; // shouldn't be possible
+            }
+            const parent = marker.parentElement;
             if (component) {
-                if (!marker.parentElement) {
-                    return; // shouldn't be possible
-                }
-                const parent = marker.parentElement;
                 subcontext = new Context(context);
                 apply(component(props, subcontext), subcontext).forEach(node => {
+                    parent.insertBefore(node, marker);
+                    childNodes.push(node);
+                });
+                subcontext.init();
+            } else if (props.else) {
+                subcontext = new Context(context);
+                apply(props.else, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
                 });
@@ -416,7 +463,7 @@ export function Dynamic<T>(props: T & {
 export function Style(props: {
     children: JSX.Element[]|JSX.Element
 } & {
-    [TKey in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[TKey]|Property<CSSStyleDeclaration[TKey]>
+    [TKey in keyof CSSStyleDeclaration]?: Input<CSSStyleDeclaration[TKey]>
 }): JSX.Element {
     return context => {
         const children = apply(props.children, context);
@@ -427,7 +474,7 @@ export function Style(props: {
             for (let key in props) {
                 if (props.hasOwnProperty(key) && key !== 'children') {
                     const value = props[key];
-                    if (value instanceof Property) {
+                    if (value instanceof Cell) {
                         value.getAndObserve(v => child.style[key] = v);
                     } else if (value) {
                         child.style[key] = value;

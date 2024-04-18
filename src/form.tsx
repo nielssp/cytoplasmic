@@ -3,7 +3,7 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { bind, ValueProperty, PropertyObserver, SettableValueProperty } from "./property";
+import { cell, MutCell, CellObserver, MutCellImpl } from "./cell";
 import { apply } from "./component";
 import { Context } from "./context";
 
@@ -18,15 +18,15 @@ export function createId(prefix: string): string {
     return id;
 }
 
-export abstract class Control<T> extends ValueProperty<T> {
-    protected source: ValueProperty<T>;
-    readonly disabled = bind(false);
+export abstract class Control<T> extends MutCell<T> {
+    protected source: MutCell<T>;
+    readonly disabled = cell(false);
     constructor(
-        value: T|ValueProperty<T>,
+        value: T|MutCell<T>,
         public readonly id: string = createId('control'),
     ) {
         super();
-        this.source = bind(value);
+        this.source = cell(value);
     }
 
     get value(): T {
@@ -37,19 +37,19 @@ export abstract class Control<T> extends ValueProperty<T> {
         this.source.value = value;
     }
 
-    update(mutator: (value: T) => void): void {
-        this.source.update(mutator);
+    update<T2>(mutator: (value: T) => T2): T2 {
+        return this.source.update(mutator);
     }
 
-    updateDefined(mutator: (value: NonNullable<T>) => void): void {
-        this.source.updateDefined(mutator);
+    updateDefined<T2>(mutator: (value: NonNullable<T>) => T2): T2 | undefined {
+        return this.source.updateDefined(mutator);
     }
 
-    observe(observer: PropertyObserver<T>): () => void {
+    observe(observer: CellObserver<T>): () => void {
         return this.source.observe(observer);
     }
 
-    unobserve(observer: PropertyObserver<T>): void {
+    unobserve(observer: CellObserver<T>): void {
         this.source.unobserve(observer);
     }
 
@@ -59,7 +59,7 @@ export abstract class Control<T> extends ValueProperty<T> {
 export class CheckboxControl extends Control<boolean> {
     private inputs: HTMLElement[] = [];
     constructor(
-        value: boolean|ValueProperty<boolean>,
+        value: boolean|MutCell<boolean>,
         id?: string,
     ) {
         super(value, id);
@@ -104,7 +104,7 @@ export class CheckboxControl extends Control<boolean> {
 export abstract class TextInputControl<T> extends Control<T> {
     private inputs: (HTMLInputElement|HTMLTextAreaElement)[] = [];
     constructor(
-        value: T|ValueProperty<T>,
+        value: T|MutCell<T>,
         id?: string,
     ) {
         super(value, id);
@@ -194,7 +194,7 @@ export abstract class TextInputControl<T> extends Control<T> {
 
 export class TextControl extends TextInputControl<string> {
     constructor(
-        value: string|ValueProperty<string>,
+        value: string|MutCell<string>,
         id?: string,
     ) {
         super(value, id);
@@ -218,7 +218,7 @@ export class IntControl extends TextInputControl<number> {
     max = Number.MAX_SAFE_INTEGER;
 
     constructor(
-        value: number|ValueProperty<number>,
+        value: number|MutCell<number>,
         id?: string,
     ) {
         super(value, id);
@@ -310,8 +310,8 @@ export class RadioControl<T extends string|number|symbol> extends Control<boolea
     }
 }
 
-export class RadioGroup<T extends string|number|symbol> extends SettableValueProperty<T> {
-    readonly disabled = bind(false);
+export class RadioGroup<T extends string|number|symbol> extends MutCellImpl<T> {
+    readonly disabled = cell(false);
     readonly radios = {} as Record<T, RadioControl<T>>;
     constructor(
         value: T,
@@ -330,7 +330,7 @@ export class RadioGroup<T extends string|number|symbol> extends SettableValuePro
 
 export function Field(props: {
     children: JSX.Element|JSX.Element[],
-    value: ValueProperty<string>|string,
+    value: MutCell<string>|string,
 } | {
     children: JSX.Element|JSX.Element[],
     control: Control<any>,

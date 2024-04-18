@@ -1,4 +1,4 @@
-import { createElement, bind, mount, bindList, Property, Show, For, Style, zipWith, ref, ariaBool, Deref, Unwrap, Context, createRouter, Link } from "../src";
+import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell } from "../src";
 import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -7,14 +7,14 @@ import './classic-stylesheets/themes/win9x/theme.css';
 import './classic-stylesheets/themes/win9x/skins/95.css';
 
 const text = new TextControl('');
-const n = bind(0);
+const n = cell(0);
 const a = new TextControl('2');
 const b = new TextControl('3');
 const c = zipWith([a, b], (a, b) => parseInt(a) + parseInt(b));
 
-const showCounter = bind(true);
+const showCounter = cell(true);
 
-const tasks = bindList<string>(['Buy milk']);
+const tasks = cellArray<string>(['Buy milk']);
 const task = new TextControl('');
 
 const selection = ref<number>();
@@ -67,7 +67,7 @@ function moveTaskDown() {
 }
 
 function Counter(_props: {}, context: Context): JSX.Element {
-    const count = bind(0);
+    const count = cell(0);
     const interval = setInterval(() => {
         count.value++;
         console.log(`The count is ${count.value}`);
