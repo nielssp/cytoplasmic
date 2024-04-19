@@ -3,77 +3,30 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { CellArray } from './array';
+import { CellIterable } from './array';
 import { Cell, cell } from './cell';
 import { apply } from './component';
 import { Context } from './context';
 
-export function For<TItem>({each, children}: {
-    each: Cell<TItem[]>,
-    children: (value: Cell<TItem>, index: number) => JSX.Element
-} | {
-    each: CellArray<TItem>,
-    children: (value: Cell<TItem>) => JSX.Element
-} | {
-    each: TItem[],
-    children: (value: TItem, index: number) => JSX.Element
+type ForEachInput = Cell<unknown[]> | CellIterable<unknown, unknown> | unknown[];
+
+type ForEachBody<TIterable extends ForEachInput> =
+    TIterable extends Cell<(infer TItem)[]>
+    ? (value: Cell<TItem>, index: number) => JSX.Element
+    : TIterable extends CellIterable<infer TItem, infer TKey>
+    ? (value: TItem, key: TKey) => JSX.Element
+    : TIterable extends (infer TItem)[]
+    ? (value: TItem, index: number) => JSX.Element
+    : never;
+
+export function For<TIterable extends ForEachInput>({each, children}: {
+    each:  TIterable,
+    children: ForEachBody<TIterable>
 }, context: Context): JSX.Element {
     const marker = document.createComment('<For>');
     let items: [Node[], Context][] = [];
-    if (each instanceof CellArray) {
-        const body = children as (value: Cell<TItem>) => JSX.Element;
-        context.onInit(() => {
-            context.onDestroy(each.observe(
-                (index, item) => {
-                    const subcontext = new Context(context);
-                    if (index >= items.length) {
-                        const nodes: Node[] = [];
-                        apply(body(item), subcontext).forEach(node => {
-                            if (!marker.parentElement) {
-                                return;
-                            }
-                            nodes.push(node);
-                            marker.parentElement.insertBefore(node, marker);
-                        });
-                        items.push([nodes, subcontext]);
-                    } else {
-                        let next: Node = marker;
-                        for (let i = index; i < items.length; i++) {
-                            if (items[i][0].length) {
-                                next = items[i][0][0];
-                                break;
-                            }
-                        }
-                        const nodes: Node[] = [];
-                        apply(body(item), subcontext).forEach(node => {
-                            if (!next.parentElement) {
-                                return;
-                            }
-                            nodes.push(node);
-                            next.parentElement.insertBefore(node, next);
-                        });
-                        items.splice(index, 0, [nodes, subcontext]);
-                    }
-                    subcontext.init();
-                },
-                index => {
-                    items.splice(index, 1).forEach(([nodes, subcontext]) => {
-                        nodes.forEach(node => node.parentElement?.removeChild(node));
-                        nodes.splice(0);
-                        subcontext.destroy();
-                    });
-                },
-            ));
-            context.onDestroy(() => {
-                items.forEach(([nodes, subcontext]) => {
-                    nodes.forEach(node => node.parentElement?.removeChild(node));
-                    nodes.splice(0);
-                    subcontext.destroy();
-                });
-            });
-        });
-    } else if (each instanceof Cell) {
-        const body = children as (value: Cell<TItem>, index: number) => JSX.Element;
+    if (each instanceof Cell) {
+        const body = children as (value: Cell<unknown>, index: number) => JSX.Element;
         const cells = each.value.map(v => cell(v));
         context.onInit(() => {
             cells.forEach((item, index) => {
@@ -133,8 +86,8 @@ export function For<TItem>({each, children}: {
                 });
             });
         });
-    } else {
-        const body = children as (value: TItem, index: number) => JSX.Element;
+    } else if (Array.isArray(each)) {
+        const body = children as (value: unknown, index: number) => JSX.Element;
         context.onInit(() => {
             each.forEach((item, index) => {
                 const nodes: Node[] = [];
@@ -144,6 +97,58 @@ export function For<TItem>({each, children}: {
                     }
                     nodes.push(node);
                     marker.parentElement.insertBefore(node, marker);
+                });
+            });
+        });
+    } else {
+        const body = children as (value: unknown, key: unknown) => JSX.Element;
+        context.onInit(() => {
+            context.onDestroy(each.observe(
+                (index, item, key) => {
+                    const subcontext = new Context(context);
+                    if (index >= items.length) {
+                        const nodes: Node[] = [];
+                        apply(body(item, key), subcontext).forEach(node => {
+                            if (!marker.parentElement) {
+                                return;
+                            }
+                            nodes.push(node);
+                            marker.parentElement.insertBefore(node, marker);
+                        });
+                        items.push([nodes, subcontext]);
+                    } else {
+                        let next: Node = marker;
+                        for (let i = index; i < items.length; i++) {
+                            if (items[i][0].length) {
+                                next = items[i][0][0];
+                                break;
+                            }
+                        }
+                        const nodes: Node[] = [];
+                        apply(body(item, key), subcontext).forEach(node => {
+                            if (!next.parentElement) {
+                                return;
+                            }
+                            nodes.push(node);
+                            next.parentElement.insertBefore(node, next);
+                        });
+                        items.splice(index, 0, [nodes, subcontext]);
+                    }
+                    subcontext.init();
+                },
+                index => {
+                    items.splice(index, 1).forEach(([nodes, subcontext]) => {
+                        nodes.forEach(node => node.parentElement?.removeChild(node));
+                        nodes.splice(0);
+                        subcontext.destroy();
+                    });
+                },
+            ));
+            context.onDestroy(() => {
+                items.forEach(([nodes, subcontext]) => {
+                    nodes.forEach(node => node.parentElement?.removeChild(node));
+                    nodes.splice(0);
+                    subcontext.destroy();
                 });
             });
         });

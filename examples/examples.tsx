@@ -1,4 +1,4 @@
-import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell } from "../src";
+import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell } from "../src";
 import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -173,6 +173,9 @@ const component = <div class='stack-column padding spacing'>
             Clicked more than 10 times
         </div>
     </Show>
+    <Show when={true}>
+        <div>farts</div>
+    </Show>
     <div class='stack-row align-center'>
         <Field control={a}>
             <input type='text'/>
@@ -201,7 +204,7 @@ const component = <div class='stack-column padding spacing'>
         <button disabled={selection.undefined} onClick={moveTaskDown}>Down</button>
     </div>
     <div class='list' role='listbox'>
-        <For each={tasks}>
+        <For each={tasks.indexed}>
             {(task, index) => (
                 <div role='option' tabIndex={0} aria-selected={ariaBool(index.eq(selection))}
                     onClick={() => selection.value = index.value}>

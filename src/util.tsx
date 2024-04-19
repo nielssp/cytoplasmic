@@ -3,7 +3,7 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Property } from "./property";
+import { Cell } from "./cell";
 
 export function noDefault<TEvent extends Event>(
     handler?: (this: HTMLElement, ev: TEvent) => void
@@ -28,6 +28,6 @@ export function stopPropagation<TEvent extends Event>(
     };
 }
 
-export function ariaBool(p: Property<any>): Property<'true'|'false'> {
+export function ariaBool(p: Cell<any>): Cell<'true'|'false'> {
     return p.map(x => x ? 'true' : 'false');
 }

@@ -45,6 +45,42 @@ export class CellArray<TItem> implements CellIterable<Cell<TItem>, void> {
         };
     }
 
+    get indexed(): CellIterable<Cell<TItem>, Cell<number>> {
+        return {
+            observe: (insert, remove) => {
+                const indices: MutCell<number>[] = [];
+                this.cells.value.forEach((item, index) => {
+                    const indexCell = cell(index);
+                    indices.push(indexCell);
+                    insert(index, item, indexCell);
+                });
+                const unobserveInsert = this.onInsert.observe(({index, item}) => {
+                    const indexCell = cell(index);
+                    if (index >= indices.length) {
+                        indices.push(indexCell);
+                    } else {
+                        indices.splice(index, 0, indexCell);
+                        for (let i = index + 1; i < indices.length; i++) {
+                            indices[i].value++;
+                        }
+                    }
+                    insert(index, item, indexCell);
+                });
+                const unobserveRemove = this.onRemove.observe(index => {
+                    indices.splice(index, 1);
+                    remove(index);
+                    for (let i = index; i < indices.length; i++) {
+                        indices[i].value--;
+                    }
+                });
+                return () => {
+                    unobserveInsert();
+                    unobserveRemove();
+                };
+            },
+        };
+    }
+
     find(predicate: (item: TItem, index: number) => boolean): MutCell<TItem> | undefined {
         return this.cells.value.find((item, index) => predicate(item.value, index));
     }

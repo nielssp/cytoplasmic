@@ -1,6 +1,6 @@
 import { apply, createElement } from "./component";
 import { Context, createValue } from "./context";
-import { ref } from "./property";
+import { ref } from "./cell";
 import { ElementChild } from "./types";
 
 export type RouterConfig = {

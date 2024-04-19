@@ -9,7 +9,7 @@ export type CellObserver<T> = (newValue: T) => any;
 
 type CellProxyObject<T> = T extends {} ? {
     [TKey in keyof T]-?: Cell<T[TKey]>;
-} : any;
+} : unknown;
 
 export abstract class Cell<T> {
     abstract get value(): T;
@@ -87,7 +87,7 @@ export abstract class Cell<T> {
     }
 
     get props(): CellProxyObject<T> {
-        return new Proxy({} as CellProxyObject<T>, {
+        return new Proxy({} as any, {
             get: (_, name) => this.map(o => (o as any)[name]),
         });
     }
@@ -198,7 +198,7 @@ class FlatMappingCell<TIn, TOut> extends Cell<TOut> {
     }
 }
 
-class ZippingCell<T> extends Cell<T> {
+export class ZippingCell<T> extends Cell<T> {
     private observers: [CellObserver<T>, CellObserver<any>][] = [];
 
     constructor(private sources: Cell<any>[], private apply: () => T) {
