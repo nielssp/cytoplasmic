@@ -368,8 +368,12 @@ class BimappingCell<T1, T2> extends MutCell<T2> {
 
 export type Input<T> = Cell<T> | T;
 
-export function input<T>(input: Input<T>): Cell<T> {
-    if (input instanceof Cell) {
+export function input<T>(input: Input<T>): Cell<T>;
+export function input<T>(input: Input<T> | undefined, defaultValue: T): Cell<T>;
+export function input<T>(input: Input<T>, defaultValue?: T): Cell<T> {
+    if ((input === undefined || input === null) && defaultValue) {
+        return new ConstCell(defaultValue);
+    } else if (input instanceof Cell) {
         return input;
     }
     return new ConstCell(input);

@@ -104,8 +104,10 @@ console.log(c.value); // 4
 
 ### Using cells in components to manage state
 
+In the following component a `count` cell keeps track of the number of times the button is clicked:
+
 ```tsx
-import { createElement } from 'cytoplasmic';
+import { createElement, cell } from 'cytoplasmic';
 
 function ClickCounter() {
     const count = cell(0);
@@ -120,23 +122,184 @@ function ClickCounter() {
 mount(document.body, <ClickCounter/>;
 ```
 
+Cells containing strings, numbers, and booleans can be used directly in JSX using `{cell}`-notation.
+
+### Cell inputs and outputs
+
+Accepting cells as properties in a component allows the component to react to state changes. The `Input<T>` type, which is an alias for `Cell<T> | T`, can be used to create components that work with both cells and raw values. To create a two-way binding a `MutCell<T>` can be used instead, this allows the component to send data back via the cell.
+
+```tsx
+// A component with two inputs
+function Result(props: {
+  a: Input<number>,
+  b: Input<number>,
+}) {
+  // The input() utility is used to turn Input<T> into Cell<T>
+  const a = input(props.a);
+  const b = input(props.b);
+  const out = zipWith([a, b], (a, b) => a + b);
+  return <div>{out}</div>
+}
+
+// A component with a string input and a number output
+function Incrementor({label, num}: {
+  label: Input<string>,
+  num: MutCell<number>,
+}) {
+  return <div>
+      {label}: {num}
+      <button onClick={() => num.value++}>
+        +1
+      </button>
+  </div>;
+}
+
+function Adder() {
+  const a = cell(0);
+  const b = cell(0);
+  return <div>
+    <Incrementor label='A' num={a}/>
+    <Incrementor label='B' num={b}/>
+    <div>Result:</div>
+    <Result a={a} b={b}/>
+  </div>;
+}
+```
+
 ## Conditionally show elements
 
-* `<Show>`
-* `<Deref>`
-* `<Unwrap>`
+The `<Show>`-component can be used to conditionally show and hide elements:
+
+```tsx
+function ToggleSection() {
+  const show = cell(false);
+  return <div>
+    <button onClick={() => show.value = !show.value}>
+      Show
+    </button>
+    <Show when={show}>
+      <div>
+        Hello, World!
+      </div>
+    </Show>
+  </div>;
+}
+```
+
+The `else`-property can be used to show an alternative when the condition is false:
+
+```tsx
+<Show when={show} else={<div>{show} is false</div>}>
+  <div>This is shown when {show} is true</div>
+</Show>
+```
+
+The following utility methods make it easier to work with boolean cells:
+
+* `a.not`: True when `a.value` is falsy, false otherwise
+* `a.undefined`: True when `a.value` is null or undefined, false otherwise
+* `a.defined`: Opposite of `undefined`
+* `a.eq(b)`: True when `a.value` strictly equals `b.value` (`b` may also be a raw value), false otherwise
+* `a.and(b)`: Same as `b.value` when `a.value` is truthy, false otherwise
+* `a.or(b)`: Same as `a.value` when `a.value` is truthy, otherwise the same as `b.value`
+
+`RefCell`s and `MutRefCell`s are cells that aren't guaranteed to contain a value, i.e. `.value` may be undefined. To handle such values the `<Deref>`-component can be used:
+
+```tsx
+function Foo() {
+  // ref<T>() is a shorthand for cell<number | undefined>(undefined)
+  const optionalNumber = ref<number>();
+  return <div>
+    <button onClick={() => optionalNumber.value = 5}>Set a number</button>
+
+    <Deref ref={optionalNumber} else={<div>There is no number to show!</div>}>
+      { n =>
+        <div>The number is {n}</div>
+      }
+    </Deref>
+  </div>
+}
+```
+
+Deref expects a function that accepts a non-nullable cell and returns an element. The function is called only when the value of the RefCell is not undefined or null. The dereferenced value (`n` in the example above) is still a cell (type `Cell<number>`) however.
+
+It's also possible to completely unwrap a cell (i.e. remove reactivity) using the `<Unwrap>`-component:
+
+
+```tsx
+function Foo() {
+  const optionalNumber = ref<number>();
+  return <div>
+    <button onClick={() => optionalNumber.value = 5}>Set a number</button>
+
+    <Unwrap from={optionalNumber} else={<div>There is no number to show!</div>}>
+      { n =>
+        <div>The number is {n}</div>
+      }
+    </Unwrap>
+  </div>
+}
+```
+
+In the above example the type of `n` is `number` as opposed to `Cell<number>` when using `Deref`. The difference between using `Unwrap` and `Deref` is that whenever the input to `Unwrap` changes, all DOM elements are recreated, whereas `Deref` will reuse the DOM elements and simply update the value of the cell.
+
+## Looping
+
+Looping is done using the `<For>` component:
+
+```tsx
+function ListWithStaticArray() {
+  const items = [1, 2, 3, 4];
+  return <For each={items}>{ item =>
+    <div>Item: {item}</div>
+  }</For>
+}
+```
+
+It's possible to loop through an array contained within a cell:
+
+```tsx
+function ListWithArrayCell() {
+  const items = cell([1, 2, 3, 4]);
+  
+  function addItem() {
+    items.update(i => i.push(i.length + 1));
+  }
+  
+  return <div>
+    <For each={items}>{ item =>
+      <div>Item: {item}</div>
+    }</For>
+    <button onClick={addItem}>Add an item</button>
+  </div>
+}
+```
+
+When the cell is updated the `For`-component will reuse existing DOM elements, but an update will be triggered for all items in the array. If you need to make lots of small modifications to an array you can use `cellArray()` instead:
+
+```tsx
+function ListWithCellArray() {
+  const items = cellArray([1, 2, 3, 4]);
+  
+  function addItem() {
+    items.push(items.length.value + 1);
+  }
+  
+  return <div>
+    <For each={items}>{ item =>
+      <div>Item: {item}</div>
+    }</For>
+    <button onClick={addItem}>Add an item</button>
+  </div>
+}
+```
+
+In cell arrays each item is a cell which makes it possible to efficiently update the content of individual cells. Additionally removals and insertions are handled efficiently.
 
 ## Dynamically show elements
 
 * `<Lazy>`
 * `<Dynamic>`
-
-
-## Looping
-
-* `<For>`
-* `cellArray()`
-* `cellMap()`
 
 ## Utilities
 
