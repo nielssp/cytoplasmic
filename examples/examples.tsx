@@ -3,10 +3,6 @@ import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, creat
 import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
 
-import './classic-stylesheets/layout.css';
-import './classic-stylesheets/themes/win9x/theme.css';
-import './classic-stylesheets/themes/win9x/skins/95.css';
-
 const text = new TextControl('');
 const n = cell(0);
 const a = new TextControl('2');
