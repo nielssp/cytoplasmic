@@ -1,4 +1,4 @@
-import { cell, constant, input } from '../src';
+import { $, cell, constant, input } from '../src';
 
 describe('cell', () => {
     it('sets the initial value', () => {
@@ -87,6 +87,37 @@ describe('MutCellImpl', () => {
         expect(observer).toHaveBeenCalledWith(5);
 
         a.unobserve(observer);
+        observer.mockClear()
+
+        a.value = 3;
+
+        expect(observer).not.toHaveBeenCalled();
+    });
+});
+
+describe('$', () => {
+    it('tracks dependencies', () => {
+        const a = cell(1);
+        const b = cell(2);
+        const c = $(() => $(a) + $(b));
+
+        expect(c.value).toBe(3);
+
+        a.value = 2;
+
+        expect(c.value).toBe(4);
+
+        const observer = jest.fn();
+        c.observe(observer);
+
+        expect(observer).not.toHaveBeenCalled();
+
+        a.value = 5;
+
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(7);
+
+        c.unobserve(observer);
         observer.mockClear()
 
         a.value = 3;

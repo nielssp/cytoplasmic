@@ -1,6 +1,6 @@
 # Cytoplasmic
 
-Cytoplasmic is a simple JSX-based frontend TypeScript library based on [reactive programming](https://en.wikipedia.org/wiki/Reactive_programming). Cytoplasmic provides a set of building blocks (reactive cells) and utilies for building web applications.
+Cytoplasmic is a simple JSX-based frontend TypeScript library based on [reactive programming](https://en.wikipedia.org/wiki/Reactive_programming). Cytoplasmic provides a set of building blocks (reactive cells) and utilities for building web applications.
 
 Reactive programming in Cytoplasmic is implemented using cells. If you have ever used a spreadsheet, you should be familiar with how cells work:
 
