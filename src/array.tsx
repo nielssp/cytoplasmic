@@ -6,6 +6,14 @@
 import { Cell, MutCell, cell } from './cell';
 import { Emitter } from './emitter';
 
+export function cellArray<TItem>(initialItems: Iterable<TItem> = []): CellArray<TItem> {
+    return new CellArray(initialItems);
+}
+
+export function cellMap<TKey, TValue>(initialEntries: Iterable<[TKey, TValue]> = []): CellMap<TKey, TValue> {
+    return new CellMap(initialEntries);
+}
+
 export interface CellIterable<TValue, TKey> {
     observe(
         insert: (index: number, item: TValue, key: TKey) => void,
@@ -13,15 +21,147 @@ export interface CellIterable<TValue, TKey> {
     ): () => void;
 }
 
-export class CellArray<TItem> implements CellIterable<Cell<TItem>, void> {
-    private readonly cells: MutCell<MutCell<TItem>[]> = cell(this.initialItems.map(item => cell(item)));
+export abstract class CellStream<TItem, TKey> implements CellIterable<Cell<TItem>, TKey>  {
+    abstract observe(
+        insert: (index: number, item: Cell<TItem>, key: TKey) => void,
+        remove: (index: number) => void,
+    ): () => void;
+
+    map<TOut>(f: (item: TItem, key: TKey) => TOut): CellStream<TOut, TKey> {
+        return new CellStreamWrapper((insert, remove) => {
+            return this.observe((index, item, key) => insert(index, item.map(v => f(v, key)), key), remove);
+        });
+    }
+
+    mapKey<TOut>(f: (item: Cell<TItem>, key: TKey) => TOut): CellStream<TItem, TOut> {
+        return new CellStreamWrapper((insert, remove) => {
+            return this.observe((index, item, key) => insert(index, item, f(item, key)), remove);
+        });
+    }
+
+    filter(f: (item: TItem) => boolean): CellStream<TItem, TKey> {
+        return new CellStreamWrapper((insert, remove) => {
+            type FilteredItem = {unobserve?: () => void, mappedIndex: number};
+            const filteredItems: FilteredItem[] = [];
+            const destroy = this.observe((index, item, key) => {
+                const filteredItem: FilteredItem = {
+                    mappedIndex: -1,
+                };
+                if (index >= filteredItems.length) {
+                    filteredItems.push(filteredItem);
+                } else {
+                    filteredItems.splice(index, 0, filteredItem);
+                }
+                filteredItem.unobserve = item.getAndObserve(x => {
+                    if (f(x)) {
+                        if (filteredItem.mappedIndex >= 0) {
+                            return;
+                        }
+                        let currentIndex = 0;
+                        for (let i = 0; i < filteredItems.length; i++) {
+                            if (filteredItems[i] === filteredItem) {
+                                if (filteredItem.mappedIndex >= 0) {
+                                    filteredItem.mappedIndex++;
+                                } else {
+                                    filteredItem.mappedIndex = 0;
+                                }
+                                currentIndex = i;
+                                break;
+                            }
+                            if (filteredItems[i].mappedIndex >= 0) {
+                                filteredItem.mappedIndex = filteredItems[i].mappedIndex;
+                            }
+                        }
+                        insert(filteredItem.mappedIndex, item, key);
+                        for (let i = currentIndex + 1; i < filteredItems.length; i++) {
+                            if (filteredItems[i].mappedIndex >= 0) {
+                                filteredItems[i].mappedIndex++;
+                            }
+                        }
+                    } else if (filteredItem.mappedIndex >= 0) {
+                        remove(filteredItem.mappedIndex);
+                        filteredItem.mappedIndex = -1;
+                        const currentIndex = filteredItems.indexOf(filteredItem);
+                        for (let i = currentIndex + 1; i < filteredItems.length; i++) {
+                            if (filteredItems[i].mappedIndex > 0) {
+                                filteredItems[i].mappedIndex--;
+                            }
+                        }
+                    }
+                });
+            }, index => {
+                filteredItems.splice(index, 1).forEach(filteredItem => {
+                    filteredItem.unobserve?.();
+                    if (filteredItem.mappedIndex >= 0) {
+                        remove(filteredItem.mappedIndex);
+                        for (let i = index; i < filteredItems.length; i++) {
+                            if (filteredItems[i].mappedIndex > 0) {
+                                filteredItems[i].mappedIndex--;
+                            }
+                        }
+                    }
+                });
+            });
+            return () => {
+                destroy();
+                filteredItems.forEach(filteredItem => filteredItem.unobserve?.());
+            };
+        });
+    }
+
+    get indexed(): CellStream<TItem, Cell<number>> {
+        return new CellStreamWrapper((insert, remove) => {
+            const indices: MutCell<number>[] = [];
+            return this.observe((index, item) => {
+                const indexCell = cell(index);
+                if (index >= indices.length) {
+                    indices.push(indexCell);
+                } else {
+                    indices.splice(index, 0, indexCell);
+                    for (let i = index + 1; i < indices.length; i++) {
+                        indices[i].value++;
+                    }
+                }
+                insert(index, item, indexCell.asCell());
+            }, index => {
+                indices.splice(index, 1);
+                remove(index);
+                for (let i = index; i < indices.length; i++) {
+                    indices[i].value--;
+                }
+            });
+        });
+    }
+}
+
+class CellStreamWrapper<TItem, TKey> extends CellStream<TItem, TKey> {
+    constructor(
+        private f: (
+            insert: (index: number, item: Cell<TItem>, key: TKey) => void,
+            remove: (index: number) => void,
+        ) => () => void,
+    ) {
+        super()
+    }
+
+    observe(
+        insert: (index: number, item: Cell<TItem>, key: TKey) => void,
+        remove: (index: number) => void,
+    ): () => void {
+        return this.f(insert, remove);
+    }
+}
+
+export class CellArray<TItem> extends CellStream<TItem, void> {
+    private readonly cells: MutCell<MutCell<TItem>[]> = cell(Array.from(this.initialItems).map(item => cell(item)));
     readonly length = this.cells.map(cells => cells.length);
     readonly onInsert = new Emitter<{index: number, item: Cell<TItem>}>();
     readonly onRemove = new Emitter<number>();
 
     constructor(
-        private initialItems: TItem[],
+        private initialItems: Iterable<TItem>,
     ) {
+        super()
     }
 
     get items(): MutCell<TItem>[] {
@@ -42,42 +182,6 @@ export class CellArray<TItem> implements CellIterable<Cell<TItem>, void> {
         return () => {
             unobserveInsert();
             unobserveRemove();
-        };
-    }
-
-    get indexed(): CellIterable<Cell<TItem>, Cell<number>> {
-        return {
-            observe: (insert, remove) => {
-                const indices: MutCell<number>[] = [];
-                this.cells.value.forEach((item, index) => {
-                    const indexCell = cell(index);
-                    indices.push(indexCell);
-                    insert(index, item, indexCell);
-                });
-                const unobserveInsert = this.onInsert.observe(({index, item}) => {
-                    const indexCell = cell(index);
-                    if (index >= indices.length) {
-                        indices.push(indexCell);
-                    } else {
-                        indices.splice(index, 0, indexCell);
-                        for (let i = index + 1; i < indices.length; i++) {
-                            indices[i].value++;
-                        }
-                    }
-                    insert(index, item, indexCell);
-                });
-                const unobserveRemove = this.onRemove.observe(index => {
-                    indices.splice(index, 1);
-                    remove(index);
-                    for (let i = index; i < indices.length; i++) {
-                        indices[i].value--;
-                    }
-                });
-                return () => {
-                    unobserveInsert();
-                    unobserveRemove();
-                };
-            },
         };
     }
 
@@ -103,14 +207,16 @@ export class CellArray<TItem> implements CellIterable<Cell<TItem>, void> {
         return this.cells.value[index]?.update(mutator);
     }
 
-    replaceAll(items: TItem[]) {
+    replaceAll(items: TItem[], predicate?: (existingItem: TItem, newItem: TItem) => boolean) {
         if (items.length < this.cells.value.length) {
             while (this.cells.value.length > items.length) {
                 this.remove(this.cells.value.length - 1);
             }
         }
         for (let i = 0; i < this.cells.value.length; i++) {
-            this.cells.value[i].value = items[i];
+            if (!predicate || predicate(this.cells.value[i].value, items[i])) {
+                this.cells.value[i].value = items[i];
+            }
         }
         for (let i = this.cells.value.length; i < items.length; i++) {
             this.push(items[i]);
@@ -153,15 +259,17 @@ export class CellArray<TItem> implements CellIterable<Cell<TItem>, void> {
     }
 }
 
-export function cellArray<T>(initialItems: T[] = []): CellArray<T> {
-    return new CellArray(initialItems);
-}
-
-export class CellMap<TKey, TValue> implements CellIterable<Cell<TValue>, TKey> {
-    private readonly cells: MutCell<Map<TKey, MutCell<TValue>>> = cell(new Map);
+export class CellMap<TKey, TValue> extends CellStream<TValue, TKey> {
+    private readonly cells: MutCell<Map<TKey, MutCell<TValue>>> = cell(new Map(Array.from(this.initialEntries).map(([key, value]) => [key, cell(value)])));
     readonly size = this.cells.map(cells => cells.size);
     readonly onInsert = new Emitter<{key: TKey, value: Cell<TValue>}>();
     readonly onDelete = new Emitter<TKey>();
+
+    constructor(
+        private initialEntries: Iterable<[TKey, TValue]> = [],
+    ) {
+        super();
+    }
 
     get values(): Iterable<MutCell<TValue>> {
         return this.cells.value.values();

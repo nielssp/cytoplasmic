@@ -266,7 +266,7 @@ export abstract class MutCell<T> extends Cell<T> {
         return new BimappingCell(this, encode, decode);
     }
 
-    get asCell(): Cell<T> {
+    asCell(): Cell<T> {
         return this.map(x => x);
     }
 }

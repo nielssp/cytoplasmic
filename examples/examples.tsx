@@ -1,3 +1,4 @@
+/** @jsx createElement */
 import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell } from "../src";
 import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
@@ -173,9 +174,6 @@ const component = <div class='stack-column padding spacing'>
             Clicked more than 10 times
         </div>
     </Show>
-    <Show when={true}>
-        <div>farts</div>
-    </Show>
     <div class='stack-row align-center'>
         <Field control={a}>
             <input type='text'/>
@@ -221,6 +219,26 @@ const component = <div class='stack-column padding spacing'>
         <button type='submit' disabled={task.not}>Add</button>
         <button onClick={insertTask} disabled={task.not}>Insert</button>
     </form>
+    <div>Mapped:</div>
+    <div class='list' role='listbox'>
+        <For each={tasks.map(x => x.toUpperCase())}>
+            {(task) => (
+                <div role='option'>
+                    {task}
+                </div>
+            )}
+        </For>
+    </div>
+    <div>Filtered (starts with "buy"):</div>
+    <div class='list' role='listbox'>
+        <For each={tasks.filter(x => x.toLowerCase().startsWith('buy'))}>
+            {(task) => (
+                <div role='option'>
+                    {task}
+                </div>
+            )}
+        </For>
+    </div>
     <h2>Temperature converter</h2>
     <TemperatureConverter/>
     <h2>Router</h2>
