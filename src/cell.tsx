@@ -11,10 +11,17 @@ type CellProxyObject<T> = T extends {} ? {
     [TKey in keyof T]-?: Cell<T[TKey]>;
 } : any;
 
+const magicDependencies: Cell<any>[] = [];
+
 export abstract class Cell<T> {
     abstract get value(): T;
     abstract observe(observer: CellObserver<T>): () => void;
     abstract unobserve(observer: CellObserver<T>): void;
+
+    get $(): T {
+        magicDependencies.push(this);
+        return this.value;
+    }
 
     getAndObserve(observer: CellObserver<T>): () => void {
         observer(this.value);
@@ -256,6 +263,50 @@ export function zipWith<T, TOut>(properties: Cell<T>[], f: (... values: T[]) => 
         return f(... properties.map(p => p.value));
     });
 }
+
+export class ComputingCell<T> extends Cell<T> {
+    private observers: [CellObserver<T>, CellObserver<any>][] = [];
+
+    constructor(private sources: Set<Cell<any>>, private computation: () => T) {
+        super();
+    }
+
+    get value(): T {
+        magicDependencies.splice(0);
+        const value = this.computation();
+        magicDependencies.splice(0).forEach(cell => {
+            if (!this.sources.has(cell)) {
+                this.sources.add(cell);
+                this.observers.forEach(([_, sourceObserver]) => cell.observe(sourceObserver));
+            }
+        });
+        return value;
+    }
+
+    observe(observer: CellObserver<T>): () => void {
+        const sourceObserver = () => {
+            observer(this.value);
+        };
+        this.sources.forEach(source => source.observe(sourceObserver));
+        this.observers.push([observer, sourceObserver]);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: CellObserver<T>): void {
+        const i = this.observers.findIndex(([o, _]) => o === observer);
+        if (i >= 0) {
+            this.sources.forEach(source => source.unobserve(this.observers[i][1]));
+            this.observers.splice(i, 1);
+        }
+    }
+}
+
+export function compute<TOut>(computation: () => TOut): Cell<TOut> {
+    magicDependencies.splice(0);
+    computation();
+    return new ComputingCell(new Set(magicDependencies.splice(0)), computation);
+}
+
 
 export abstract class MutCell<T> extends Cell<T> {
     abstract set value(value: T);

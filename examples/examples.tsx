@@ -1,5 +1,5 @@
 /** @jsx createElement */
-import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell } from "../src";
+import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell, compute } from "../src";
 import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -7,7 +7,8 @@ const text = new TextControl('');
 const n = cell(0);
 const a = new TextControl('2');
 const b = new TextControl('3');
-const c = zipWith([a, b], (a, b) => parseInt(a) + parseInt(b));
+//const c = zipWith([a, b], (a, b) => parseInt(a) + parseInt(b));
+const c = compute(() => parseInt(a.$) + parseInt(b.$));
 
 const showCounter = cell(true);
 
