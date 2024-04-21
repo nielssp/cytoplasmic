@@ -226,7 +226,7 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
     push(item: TItem): void {
         const index = this.length.value;
         const c = cell(item);
-        this.cells.value.push(c);
+        this.cells.update(cells => cells.push(c));
         this.onInsert.emit({index, item: c});
     }
 
