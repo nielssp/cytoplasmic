@@ -6,12 +6,12 @@
 import { EventAttributes, HTMLAttributes } from "tsx-dom-types";
 import { Cell, MutRefCell } from "./cell";
 
-export type ElementChild = HTMLElement|string|number|Cell<string>|Cell<number>|JSX.Element|ElementChild[];
+export type ElementChildren = HTMLElement | string | number | boolean | Cell<string> | Cell<number> | Cell<boolean> | JSX.Element | ElementChildren[];
 
 export type IntrinsicElementsHTML = {
     [TKey in keyof HTMLElementTagNameMap]?: EventAttributes<HTMLElementTagNameMap[TKey]> & ReactiveHTMLAttributes & {
         ref?: MutRefCell<HTMLElementTagNameMap[TKey]>;
-        children?: ElementChild[]|ElementChild;
+        children?: ElementChildren;
     }
 };
 

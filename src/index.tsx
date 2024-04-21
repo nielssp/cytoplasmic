@@ -17,6 +17,7 @@ export * from './form';
 export * from './injector';
 export * from './router';
 export * from './util';
+export { ElementChildren } from './types';
 
 declare global {
     namespace JSX {

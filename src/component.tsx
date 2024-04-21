@@ -5,35 +5,16 @@
 
 import { Cell, Input, MutCell, MutRefCell, RefCell, cell, input } from "./cell";
 import { Context } from "./context";
-import { ElementChild } from "./types";
+import { ElementChildren } from "./types";
 
-function appendChildren(element: HTMLElement, children: ElementChild[], context: Context): void {
-    children.forEach(child => {
-        if (typeof child === 'string') {
-            element.appendChild(document.createTextNode(child));
-        } else if (typeof child === 'number') {
-            element.appendChild(document.createTextNode('' + child));
-        } else if (Array.isArray(child)) {
-            appendChildren(element, child, context);
-        } else if (child instanceof Cell) {
-            const text = document.createTextNode('' + child.value);
-            const unobserve = child.observe((value: string|number) => {
-                text.textContent = '' + value;
-            });
-            context.onDestroy(() => unobserve());
-            element.appendChild(text);
-        } else if (child instanceof Node) {
-            element.appendChild(child);
-        } else {
-            apply(child, context).forEach(child => {
-                element.appendChild(child);
-            });
-        }
+function appendChildren(element: HTMLElement, children: ElementChildren[], context: Context): void {
+    apply(children, context).forEach(child => {
+        element.appendChild(child);
     });
 }
 
 export type ComponentProps<T> = T & {
-    children?: ElementChild|ElementChild[],
+    children?: ElementChildren,
 };
 export type Component<T = {}> = (props: ComponentProps<T>, context: Context) => JSX.Element;
 
@@ -41,9 +22,9 @@ type ElementAttributes<T> = Record<string, string|number|boolean|Cell<string>|Ce
     ref?: MutRefCell<T>,
 };
 
-export function createElement<TElem extends keyof HTMLElementTagNameMap>(name: TElem, properties: ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChild[]): JSX.Element;
-export function createElement<T extends {}>(name: Component<T>, properties: T, ... children: ElementChild[]): JSX.Element;
-export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps extends {}>(name: TElem|Component<TProps>, properties: TProps & ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChild[]): JSX.Element {
+export function createElement<TElem extends keyof HTMLElementTagNameMap>(name: TElem, properties: ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChildren[]): JSX.Element;
+export function createElement<T extends {}>(name: Component<T>, properties: T, ... children: ElementChildren[]): JSX.Element;
+export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps extends {}>(name: TElem|Component<TProps>, properties: TProps & ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChildren[]): JSX.Element {
     if (typeof name === 'string') {
         return context => {
             const e = document.createElement(name);
@@ -152,35 +133,29 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
     }
 }
 
-export function flatten(elements: JSX.Element[]|JSX.Element): JSX.Element {
-    if (Array.isArray(elements)) {
-        return context => {
-            const result: Node[] = [];
-            elements.forEach(element => {
-                const output = element(context);
-                if (Array.isArray(output)) {
-                    output.forEach(e => result.push(e));
-                } else {
-                    result.push(output);
-                }
-            });
-            return result;
-        };
-    }
-    return elements;
+export function flatten(elements: ElementChildren): JSX.Element {
+    return context => apply(elements, context);
 }
 
-export function apply(elements: JSX.Element[]|JSX.Element, context: Context): Node[] {
+export function apply(elements: ElementChildren, context: Context): Node[] {
     const result: Node[] = [];
-    if (Array.isArray(elements)) {
+    if (typeof elements === 'string') {
+        result.push(document.createTextNode(elements));
+    } else if (typeof elements === 'number' || typeof elements === 'boolean') {
+        result.push(document.createTextNode('' + elements));
+    } else if (Array.isArray(elements)) {
         elements.forEach(element => {
-            const output = element(context);
-            if (Array.isArray(output)) {
-                output.forEach(e => result.push(e));
-            } else {
-                result.push(output);
-            }
+            result.push(...apply(element, context));
         });
+    } else if (elements instanceof Cell) {
+        const text = document.createTextNode('' + elements.value);
+        const unobserve = elements.observe((value: string | number | boolean) => {
+            text.textContent = '' + value;
+        });
+        context.onDestroy(() => unobserve());
+        result.push(text);
+    } else if (elements instanceof Node) {
+        result.push(elements);
     } else {
         const output = elements(context);
         if (Array.isArray(output)) {
@@ -193,9 +168,9 @@ export function apply(elements: JSX.Element[]|JSX.Element, context: Context): No
 }
 
 export function Show(props: {
-    children: JSX.Element[]|JSX.Element,
+    children: ElementChildren,
     when: Input<any>,
-    else?: JSX.Element[]|JSX.Element,
+    else?: ElementChildren,
 }): JSX.Element {
     const when = input(props.when);
     return context => {
@@ -254,9 +229,9 @@ export function Show(props: {
 }
 
 export function Deref<T>(props: {
-    children: (value: Cell<T>) => JSX.Element
+    children: (value: Cell<T>) => ElementChildren
     ref: Cell<T | undefined | null>,
-    else?: JSX.Element[]|JSX.Element,
+    else?: ElementChildren,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Deref>');
@@ -320,9 +295,9 @@ export function Deref<T>(props: {
 }
 
 export function Unwrap<T>(props: {
-    children: (value: T) => JSX.Element
+    children: (value: T) => ElementChildren
     from: Cell<T | undefined | null>,
-    else?: JSX.Element[]|JSX.Element,
+    else?: ElementChildren,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Unwrap>');
@@ -369,15 +344,15 @@ export function Unwrap<T>(props: {
 }
 
 export function Lazy(props: {
-    children: () => Promise<JSX.Element>
-    else?: JSX.Element,
+    children: () => Promise<ElementChildren>
+    else?: ElementChildren,
     onError?: (error: any) => void,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Lazy>');
         const childNodes: Node[] = [];
         let subcontext: Context | undefined;
-        const setElement = (element: JSX.Element) => {
+        const setElement = (element: ElementChildren) => {
             if (subcontext) {
                 childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
                 subcontext.destroy();
@@ -416,7 +391,7 @@ export function Lazy(props: {
 
 export function Dynamic<T>(props: T & {
     component: RefCell<Component<T>>,
-    else?: JSX.Element[]|JSX.Element,
+    else?: ElementChildren,
 }): JSX.Element {
     return context => {
         const marker = document.createComment('<Dynamic>');
@@ -461,7 +436,7 @@ export function Dynamic<T>(props: T & {
 }
 
 export function Style(props: {
-    children: JSX.Element[]|JSX.Element
+    children: ElementChildren
 } & {
     [TKey in keyof CSSStyleDeclaration]?: Input<CSSStyleDeclaration[TKey]>
 }): JSX.Element {
@@ -500,6 +475,6 @@ export function mount(container: HTMLElement, ... elements: JSX.Element[]): () =
     };
 }
 
-export function Fragment({children}: {children: JSX.Element[]|JSX.Element}) {
+export function Fragment({children}: {children: ElementChildren}): JSX.Element {
     return flatten(children);
 }

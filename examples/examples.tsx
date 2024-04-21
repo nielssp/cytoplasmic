@@ -132,6 +132,12 @@ function RoutingNotFound() {
     </div>;
 }
 
+async function loadLazyRoute() {
+    const m = await import('./lazy-route');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return <m.LazyRoute/>;
+}
+
 function RoutingExample() {
     const router = createRouter({
         '': () => <RoutingDashboard/>,
@@ -139,7 +145,7 @@ function RoutingExample() {
             '': () => <RoutingUsers/>,
             '*': userId => <RoutingUser userId={userId}/>,
         },
-        'lazy': () => import('./lazy-route').then(m => <m.LazyRoute/>),
+        'lazy': () => loadLazyRoute(),
         '**': () => <RoutingNotFound/>,
     });
     return <div class='stack-column spacing'>
@@ -165,11 +171,11 @@ const component = <div class='stack-column padding spacing'>
     <div class="lowered">
         <div style={{backgroundColor: '#008', height: '20px', width: n.map(n => `${n}px`)}}></div>
     </div>
-    <Show when={n.map(n => n > 10)}>
-        <div>
+    <div>
+        <Show when={n.map(n => n > 10)} else='Clicked less than 10 times'>
             Clicked more than 10 times
-        </div>
-    </Show>
+        </Show>
+    </div>
     <div class='stack-row align-center'>
         <Field control={a}>
             <input type='text'/>

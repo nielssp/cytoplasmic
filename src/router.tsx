@@ -1,7 +1,7 @@
 import { apply, createElement } from "./component";
 import { Context, createValue } from "./context";
 import { ref } from "./cell";
-import { ElementChild } from "./types";
+import { ElementChildren } from './types';
 
 export type RouterConfig = {
     [key: Exclude<string, '*' | '**'>]: RouterConfig | (() => JSX.Element | Promise<JSX.Element>);
@@ -17,10 +17,10 @@ export interface Router {
     resolve(path: Path): Promise<JSX.Element | undefined>;
     navigate(path: Path): Promise<void>;
     Portal({}: {}): JSX.Element;
-    Provider({children}: {children: JSX.Element|JSX.Element[]}): JSX.Element;
+    Provider({children}: {children: ElementChildren}): JSX.Element;
     Link(props: {
         path: Path,
-        children: JSX.Element|JSX.Element[],
+        children: ElementChildren,
     }): JSX.Element;
 }
 
