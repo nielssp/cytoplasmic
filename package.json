@@ -1,10 +1,10 @@
 {
-  "name": "cstk",
-  "version": "0.5.5",
-  "description": "The Classic Stylesheets Toolkit",
+  "name": "cytoplasmic",
+  "version": "0.6.0",
+  "description": "Reactive building blocks for typesafe JSX-based web applications",
   "author": "Niels Poulsen",
   "license": "MIT",
-  "repository": "nielssp/cstk",
+  "repository": "nielssp/cytoplasmic",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -15,7 +15,8 @@
     "build": "webpack --mode=production",
     "watch": "webpack watch --mode=production",
     "dev": "webpack serve --config=webpack.examples.config.js",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "docs": "typedoc src/index.tsx"
   },
   "dependencies": {
     "tsx-dom-types": "^1.0.0"

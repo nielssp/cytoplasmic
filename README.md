@@ -1,42 +1,45 @@
-# CSTK
+# Cytoplasmic
 
-CSTK is the "[Classic Stylesheets](https://github.com/nielssp/classic-stylesheets) Toolkit". It's intended as both a simple and (hopefully) performant JSX-based frontend TypeScript library based on [reactive programming](https://en.wikipedia.org/wiki/Reactive_programming), and a set of widgets, layouts and utilities for building traditional desktop GUIs for the web.
+Cytoplasmic is a simple JSX-based frontend TypeScript library based on [reactive programming](https://en.wikipedia.org/wiki/Reactive_programming). Cytoplasmic provides a set of building blocks (reactive cells) and utilies for building web applications.
 
-## Status
-
-CSTK is still in the early experimental stages of development and may change or be abandoned at any time.
-
-## Reactivity
+Reactive programming in Cytoplasmic is implemented using cells. If you have ever used a spreadsheet, you should be familiar with how cells work:
 
 ```tsx
-const a = bind(1);
-const b = bind(2);
+// Create two cells:
+const a = cell(1);
+const b = cell(2);
+// Create a computed cell that uses a and b to compute a value:
 const c = zipWith([a, b], (a, b) => a + b);
+// Initially the value of c is 3:
 console.log(c.value); // 3
+// But if we change the value of one of the inputs, the value of c also changes:
 a.value = 10
 console.log(c.value); // 12
 ```
 
-```tsx
-function Counter() {
-    const count = bind(0);
-    return <div>
-        <button onClick={() => count.value++}>
-            Increment
-        </button>
-        <div>The count is {count}</div>
-    </div>;
-}
-```
+The API documentaion is available here: https://nielssp.github.io/cytoplasmic/
 
 ## Examples
 
 - [Counter (7GUIs)](https://codesandbox.io/s/cstk-counter-7guis-jmugil?file=/index.tsx)
 - [Temperature Converter (7GUIs)](https://codesandbox.io/s/cstk-temperature-converter-7guis-o0w7pg?file=/index.tsx)
 
-## How to use
+## First component
 
-### Components
+Cytoplasmic allows you to create DOM-elements using JSX-syntax.
+
+```tsx
+import { createElement, mount } from 'cytoplasmic';
+
+function HelloWorld() {
+    return <h1>Hello, <strong style='color: blue;'>World</strong>!</h1>;
+}
+
+mount(document.body, <HelloWorld/>);
+```
+
+Use the `mount()` function to create an instance of your component and attach it to the DOM. `document.body` can be used as the root element if you want the entire page to be controlled by your Cytoplasmic component, but any DOM-element can be used as the root if you want to embed a Cytoplasmic component in an existing non-Cytoplasmic application.
+
 
 ```tsx
 import { createElement, mount} from 'cstk';
@@ -65,38 +68,81 @@ function App() {
 mount(document.body, <App/>);
 ```
 
-### Reactivity
+## Cells
 
-* `bind()`
-* `ref()`
-* `zip()`
-* `zipWith()`
-* `bindList()`
-* `p.getAndObserve()`
-* `p.map()`
-* `p.mapDefined()`
-* `p.flatMap()`
-* `p.not`
-* `p.defined`
-* `p.undefined`
-* `p.eq()`
-* `p.and()`
-* `p.or()`
-* `p.props`
-* `p.orElse()`
-* `p.await()`
+Cells are the reactive building blocks of Cytoplasmic components. There are immutable (`Cell<T>`) and mutable (`MutCell<T>`) cells.
+To create a mutable cell simply call the function `cell(x)` where `x` is the cell's default content.
+To get the current value of the cell the `value`-getter can be used.  For mutable cells, the value can be changed with the `value`-setter.
 
-###  Utilities
+```tsx
+const a = cell(1);
+console.log(a.value); // 1
+a.value = 2;
+console.log(b.value); // 2
+```
+
+An important cell operator is `map()` which produces a dependent cell that changes whenever the source cell changes:
+
+```tsx
+const a = cell(1);
+const b = a.map(x => x + 1);
+console.log(b.value); // 2
+a.value = 2;
+console.log(b.value); // 3
+```
+
+To compute a value based on multiple source cells, `zip` and `zipWith` can be used:
+
+```tsx
+const a = cell(1);
+const b = cell(2);
+const c = zipWith([a, b], ([a, b]) => a + b);
+console.log(c.value); // 3
+a.value = 2;
+console.log(c.value); // 4
+```
+
+### Using cells in components to manage state
+
+```tsx
+import { createElement } from 'cytoplasmic';
+
+function ClickCounter() {
+    const count = cell(0);
+    return <div>
+        <button onClick={() => count.value++}>
+            Click me!
+        </button>
+        You've clicked the button {count} times
+    </div>;
+}
+
+mount(document.body, <ClickCounter/>;
+```
+
+## Conditionally show elements
 
 * `<Show>`
 * `<Deref>`
 * `<Unwrap>`
+
+## Dynamically show elements
+
 * `<Lazy>`
 * `<Dynamic>`
-* `<Style>`
-* `<For>`
 
-### Routing
+
+## Looping
+
+* `<For>`
+* `cellArray()`
+* `cellMap()`
+
+## Utilities
+
+* `<Style>`
+
+## Routing
 
 * `createRouter()`
 * `r.navigate()`
@@ -105,7 +151,7 @@ mount(document.body, <App/>);
 * `<r.Link>`
 * `<Link>`
 
-### Forms
+## Forms
 
 * `<Field>`
 * `CheckboxControl`
@@ -114,7 +160,7 @@ mount(document.body, <App/>);
 * `RadioControl`
 * `RadioGroup`
 
-### Context values
+## Context values
 
 ```tsx
 const Theme = createValue('light');

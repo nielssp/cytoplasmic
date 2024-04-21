@@ -1,4 +1,13 @@
-# cstk changelog
+# Cytoplasmic changelog
+
+## Cytoplasmic 0.6.0
+
+This is the initial release of Cytoplasmic. "Properties" have been renamed to "cells".
+
+- `cell(initialValue)` replaces `bind()`
+- `<Show>` now also works with static values
+- `<For>` now also works with static arrays
+- `cellArray(items)` and `cellMap(entries)` replace `bindList()`
 
 ## cstk 0.5.5
 
