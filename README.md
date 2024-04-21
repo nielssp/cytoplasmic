@@ -21,8 +21,8 @@ The API documentaion is available here: https://nielssp.github.io/cytoplasmic/
 
 ## Examples
 
-- [Counter (7GUIs)](https://codesandbox.io/s/cstk-counter-7guis-jmugil?file=/index.tsx)
-- [Temperature Converter (7GUIs)](https://codesandbox.io/s/cstk-temperature-converter-7guis-o0w7pg?file=/index.tsx)
+- [Counter (7GUIs)](https://codesandbox.io/p/sandbox/shy-water-6j53j5)
+- [Temperature Converter (7GUIs)](https://codesandbox.io/p/sandbox/objective-leavitt-2hw7hn)
 
 ## First component
 
