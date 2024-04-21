@@ -9,7 +9,7 @@ export type CellObserver<T> = (newValue: T) => any;
 
 type CellProxyObject<T> = T extends {} ? {
     [TKey in keyof T]-?: Cell<T[TKey]>;
-} : unknown;
+} : any;
 
 export abstract class Cell<T> {
     abstract get value(): T;
