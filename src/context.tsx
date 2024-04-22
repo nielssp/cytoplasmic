@@ -23,11 +23,19 @@ export class Context {
     }
 
     onInit(initializer: () => void): void {
-        this.initializers.push(initializer);
+        if (!this.initialized) {
+            this.initializers.push(initializer);
+        } else if (!this.destroyed) {
+            initializer();
+        }
     }
 
     onDestroy(destructor: () => void): void {
-        this.destructors.push(destructor);
+        if (!this.destroyed) {
+            this.destructors.push(destructor);
+        } else {
+            destructor();
+        }
     }
 
     use<T>(property: ContextValue<T>): T {

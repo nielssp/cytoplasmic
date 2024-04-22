@@ -6,6 +6,15 @@
 import { Cell, MutCell, cell } from './cell';
 import { Emitter } from './emitter';
 
+/**
+ * Create a mutable array of cells that keeps track of insertions and deletions.
+ *
+ * Use this instead of a regular array cell (`cell([1, 2, 3])`) when you need to
+ * modify individual cells or need to make many small insertions and deletions.
+ *
+ * @param initialItems - The initial items of the array
+ * @returns A reactive cell array
+ */
 export function cellArray<TItem>(initialItems: Iterable<TItem> = []): CellArray<TItem> {
     return new CellArray(initialItems);
 }
