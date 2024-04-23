@@ -326,14 +326,17 @@ describe('CellStream', () => {
         const a = cellArray([1, 2, 3]);
         const b = a.indexed.filter(x => x % 2 === 0);
 
+        const items: Cell<number>[] = [];
         const indices: Cell<number>[] = [];
 
         const insert = jest.fn();
         const remove = jest.fn();
         const unobserve = b.observe((i, c, k) => {
+            items.splice(i, 0, c);
             indices.splice(i, 0, k);
             insert(i, c.value, k.value);
         }, i => {
+            items.splice(i, 1);
             indices.splice(i, 1);
             remove(i);
         });
@@ -353,24 +356,44 @@ describe('CellStream', () => {
         // a: [0, 1, 2, 3, 4, 5] b: [0, 2, 4]
 
         expect(insert).toHaveBeenCalledWith(0, 0, 0);
+        expect(items.map(x => x.value)).toStrictEqual([0, 2, 4]);
         expect(indices.map(x => x.value)).toStrictEqual([0, 2, 4]);
 
         a.remove(1);
         // a: [0, 2, 3, 4, 5] b: [0, 2, 4]
         expect(remove).toHaveBeenCalledTimes(0);
+        expect(items.map(x => x.value)).toStrictEqual([0, 2, 4]);
         expect(indices.map(x => x.value)).toStrictEqual([0, 1, 3]);
 
         a.remove(1);
         // a: [0, 3, 4, 5] b: [0, 4]
         expect(remove).toHaveBeenCalledWith(1);
+        expect(items.map(x => x.value)).toStrictEqual([0, 4]);
         expect(indices.map(x => x.value)).toStrictEqual([0, 2]);
+
+        a.items[0].value = 1;
+        // a: [1, 3, 4, 5] b: [4]
+        expect(remove).toHaveBeenCalledWith(0);
+        expect(items.map(x => x.value)).toStrictEqual([4]);
+        expect(indices.map(x => x.value)).toStrictEqual([2]);
+
+        a.items[3].value = 2;
+        // a: [1, 3, 4, 2] b: [4, 2]
+        expect(insert).toHaveBeenCalledWith(1, 2, 3);
+        expect(items.map(x => x.value)).toStrictEqual([4, 2]);
+        expect(indices.map(x => x.value)).toStrictEqual([2, 3]);
+
+        a.items[3].value = 8;
+        // a: [1, 3, 4, 8] b: [4, 8]
+        expect(items.map(x => x.value)).toStrictEqual([4, 8]);
+        expect(indices.map(x => x.value)).toStrictEqual([2, 3]);
 
         unobserve();
 
         a.push(6);
         a.remove(1);
 
-        expect(insert).toHaveBeenCalledTimes(3);
-        expect(remove).toHaveBeenCalledTimes(1);
+        expect(insert).toHaveBeenCalledTimes(4);
+        expect(remove).toHaveBeenCalledTimes(2);
     });
 });

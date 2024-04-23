@@ -1,17 +1,5 @@
-import { $, Cell, cell, constant, input, ref, zip, zipWith } from '../src';
-
-function numObservers(cell: Cell<unknown>): number {
-    const observers = (cell as any).observers;
-    if (!observers) {
-        return 0;
-    } else if (observers instanceof Set) {
-        return observers.size
-    } else if (observers instanceof Map) {
-        return observers.size
-    } else {
-        return observers.length;
-    }
-}
+import { $, cell, constant, input, ref, zip, zipWith } from '../src';
+import { numObservers } from './test-util';
 
 describe('cell', () => {
     it('sets the initial value', () => {
@@ -142,6 +130,56 @@ describe('$', () => {
         expect(numObservers(a)).toBe(0);
         expect(numObservers(b)).toBe(0);
         expect(numObservers(c)).toBe(0);
+    });
+
+    it('tracks changing dependencies', () => {
+        const a = cell(true);
+        const b = cell(1);
+        const c = cell(2);
+        const d = $(() => $(a) ? $(b) : $(c));
+
+        expect(d.value).toBe(1);
+
+        a.value = false;
+
+        expect(d.value).toBe(2);
+
+        const observer = jest.fn();
+        d.observe(observer);
+
+        a.value = true;
+
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(1);
+
+        b.value = 3;
+
+        expect(observer).toHaveBeenCalledTimes(2);
+        expect(observer).toHaveBeenCalledWith(3);
+
+        c.value = 4;
+
+        expect(observer).toHaveBeenCalledTimes(3);
+        expect(observer).toHaveBeenCalledWith(3);
+
+        a.value = false;
+
+        expect(observer).toHaveBeenCalledTimes(4);
+        expect(observer).toHaveBeenCalledWith(4);
+
+        d.unobserve(observer);
+        observer.mockClear()
+
+        a.value = false;
+        b.value = 1;
+        c.value = 2;
+
+        expect(observer).not.toHaveBeenCalled();
+
+        expect(numObservers(a)).toBe(0);
+        expect(numObservers(b)).toBe(0);
+        expect(numObservers(c)).toBe(0);
+        expect(numObservers(d)).toBe(0);
     });
 });
 
