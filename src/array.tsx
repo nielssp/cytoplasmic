@@ -200,8 +200,10 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
 
     insert(index: number, item: TItem): void {
         const c = cell(item);
-        this.cells.update(cells => cells.splice(index, 0, c));
-        this.onInsert.emit({index, item: c});
+        this.cells.update(cells => {
+            cells.splice(index, 0, c);
+            this.onInsert.emit({index, item: c});
+        });
     }
 
     get(index: number): TItem | undefined {
@@ -232,11 +234,24 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
         }
     }
 
+    /**
+     * Add an item to the end of the array increasing its length by one.
+     *
+     * When inserting items the order of events is as follows:
+     *
+     * 1. The item is inserted in the internal array of cells
+     * 2. An insertion event is emitted to active iterators
+     * 3. The {@see length} cell emits an update to observers
+     *
+     * @param item - The item to add to the end of the array
+     */
     push(item: TItem): void {
         const index = this.length.value;
         const c = cell(item);
-        this.cells.update(cells => cells.push(c));
-        this.onInsert.emit({index, item: c});
+        this.cells.update(cells => {
+            cells.push(c);
+            this.onInsert.emit({index, item: c});
+        });
     }
 
     pushAll(items: TItem[]): void {

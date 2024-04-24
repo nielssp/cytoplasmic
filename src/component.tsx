@@ -359,7 +359,7 @@ export function Lazy(props: {
                 subcontext = undefined;
             }
             if (!marker.parentElement) {
-                return; // shouldn't be possible
+                return;
             }
             const parent = marker.parentElement;
             subcontext = new Context(context);
@@ -376,8 +376,11 @@ export function Lazy(props: {
             props.children().then(element => {
                 setElement(element);
             }, error => {
-                console.error('Failed loading lazy component:', error);
-                props.onError?.(error);
+                if (props.onError) {
+                    props.onError(error);
+                } else {
+                    console.error('Failed loading lazy component:', error);
+                }
             });
         });
         context.onDestroy(() => {
@@ -450,7 +453,7 @@ export function Style(props: {
                 if (props.hasOwnProperty(key) && key !== 'children') {
                     const value = props[key];
                     if (value instanceof Cell) {
-                        value.getAndObserve(v => child.style[key] = v);
+                        context.onDestroy(value.getAndObserve(v => child.style[key] = v));
                     } else if (value) {
                         child.style[key] = value;
                     }
