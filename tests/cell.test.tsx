@@ -1,4 +1,4 @@
-import { $, cell, constant, input, ref, zip, zipWith } from '../src';
+import { $, Cell, cell, constant, createEmitter, input, ref, zip, zipWith } from '../src';
 import { numObservers } from './test-util';
 
 describe('cell', () => {
@@ -33,6 +33,28 @@ describe('cell', () => {
         b.value = 'baz';
         expect(a.value).toBe('bar');
         expect(b.value).toBe('baz');
+    });
+    it('can be created from an observable', () => {
+        const emitter = createEmitter<number>();
+        const a = Cell.from(emitter, 10);
+
+        expect(a.value).toBe(10);
+
+        const observer = jest.fn();
+        a.observe(observer);
+
+        emitter.emit(15);
+        expect(observer).toHaveBeenCalledWith(15);
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(a.value).toBe(15);
+
+        a.unobserve(observer);
+
+        emitter.emit(20);
+        expect(observer).toHaveBeenCalledTimes(1);
+
+        expect(numObservers(emitter)).toBe(0);
+        expect(numObservers(a)).toBe(0);
     });
 });
 

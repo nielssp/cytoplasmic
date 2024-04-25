@@ -4,6 +4,7 @@
 // http://opensource.org/licenses/MIT for more information.
 
 import { apply } from "./component";
+import { ElementChildren } from './types';
 
 let nextContextId = 1;
 
@@ -12,13 +13,13 @@ export class Context {
     private destroyed = false;
     private initializers: (() => void)[] = [];
     private destructors: (() => void)[] = [];
-    private properties: Record<number, any>;
+    private values: Record<number, any>;
 
     constructor(parent?: Context) {
         if (parent) {
-            this.properties = {...parent.properties};
+            this.values = {...parent.values};
         } else {
-            this.properties = {};
+            this.values = {};
         }
     }
 
@@ -39,8 +40,8 @@ export class Context {
     }
 
     use<T>(property: ContextValue<T>): T {
-        if (this.properties.hasOwnProperty(property.id)) {
-            return this.properties[property.id];
+        if (this.values.hasOwnProperty(property.id)) {
+            return this.values[property.id];
         } else {
             return property.defaultValue;
         }
@@ -48,7 +49,7 @@ export class Context {
 
     provide<T>(property: ContextValue<T>, value: T): Context {
         const subcontext = new Context(this);
-        subcontext.properties[property.id] = value;
+        subcontext.values[property.id] = value;
         return subcontext;
     }
 
@@ -70,19 +71,19 @@ export class Context {
 export interface ContextValue<T> {
     id: number;
     defaultValue: T;
-    Provider: (props: {value: T, children: JSX.Element|JSX.Element[]}) => JSX.Element;
-    Consumer: (props: {children: (value: T) => JSX.Element|JSX.Element[]}) => JSX.Element;
+    Provider: (props: {value: T, children: ElementChildren}) => JSX.Element;
+    Consumer: (props: {children: (value: T) => ElementChildren}) => JSX.Element;
 }
 
 export function createValue<T>(defaultValue: T): ContextValue<T> {
     const id = nextContextId++;
-    const Provider = ({value, children}: {value: T, children: JSX.Element|JSX.Element[]}) => {
+    const Provider = ({value, children}: {value: T, children: ElementChildren}) => {
         return (context: Context) => {
             const subcontext = context.provide(property, value);
             return apply(children, subcontext);
         };
     };
-    const Consumer = ({children}: {children: (value: T) => JSX.Element|JSX.Element[]}) => {
+    const Consumer = ({children}: {children: (value: T) => ElementChildren}) => {
         return (context: Context) => {
             const value = context.use(property);
             return apply(children(value), context);

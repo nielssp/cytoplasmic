@@ -1,5 +1,5 @@
 /** @jsx createElement */
-import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell, $ } from "../src";
+import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell, $, createInterval } from "../src";
 import { TextControl, Field, IntControl } from "../src/form";
 import { _, _n } from "../src/i18n";
 
@@ -64,13 +64,9 @@ function moveTaskDown() {
     }
 }
 
-function Counter(_props: {}, context: Context): JSX.Element {
-    const count = cell(0);
-    const interval = setInterval(() => {
-        count.value++;
-        console.log(`The count is ${count.value}`);
-    }, 1000);
-    context.onDestroy(() => clearInterval(interval));
+function Counter(): JSX.Element {
+    const interval = createInterval(1000);
+    const count = Cell.from(interval.indexed().map(x => x + 1), 0);
     return <div>The count is {count}</div>;
 }
 

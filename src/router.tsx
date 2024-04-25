@@ -146,7 +146,7 @@ class HashRouter implements Router {
 
     Link = (props: {
         path: Path,
-        children: JSX.Element|JSX.Element[],
+        children: ElementChildren,
     }): JSX.Element => {
         const onClick = (event: MouseEvent) => {
             event.preventDefault();
@@ -185,11 +185,11 @@ export const ActiveRouter = createValue<Router|undefined>(undefined);
 
 export function Link(props: {
     path: Path,
-    children: JSX.Element|JSX.Element[],
+    children: ElementChildren,
 }, context: Context) {
     const router = context.use(ActiveRouter);
     if (!router) {
-        return <span>!NO ROUTER!</span>
+        return <span>ERROR: No router</span>
     }
     return router.Link(props);
 }

@@ -3,15 +3,17 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
+import { Observable, Observer } from './emitter';
+
 export type CellValue<T> = T extends Cell<infer TValue> ? TValue : never;
 
-export type CellObserver<T> = (newValue: T) => any;
+export type CellObserver<T> = (newValue: T) => void;
 
-type CellProxyObject<T> = T extends {} ? {
+export type CellProxyObject<T> = T extends {} ? {
     [TKey in keyof T]-?: Cell<T[TKey]>;
 } : any;
 
-export abstract class Cell<T> {
+export abstract class Cell<T> implements Observable<T> {
     abstract get value(): T;
     abstract observe(observer: CellObserver<T>): () => void;
     abstract unobserve(observer: CellObserver<T>): void;
@@ -107,6 +109,77 @@ export abstract class Cell<T> {
             return result;
         });
     }
+
+    static from<T>(observable: Observable<T>, initialValue: T): Cell<T> {
+        return new ObservingCell(observable, initialValue);
+    }
+}
+
+abstract class ObserverCell<T> extends Cell<T> {
+    private observers: Set<CellObserver<T>> = new Set;
+
+    protected init(): void {
+    }
+
+    protected destroy(): void {
+    }
+
+    protected emitValue(value: T) {
+        this.observers.forEach(observer => observer(value));
+    }
+
+    protected get observed(): boolean {
+        return !!this.observers.size;
+    }
+
+    observe(observer: CellObserver<T>): () => void {
+        if (!this.observers.size) {
+            this.init();
+        }
+        this.observers.add(observer);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: CellObserver<T>): void {
+        this.observers.delete(observer);
+        if (!this.observers.size) {
+            this.destroy();
+        }
+    }
+}
+
+class ObservingCell<T> extends Cell<T> {
+    private observers: Set<CellObserver<T>> = new Set;
+    private observableObserver: Observer<T> = value => {
+        this._value = value;
+        this.observers.forEach(observer => observer(value));
+    };
+
+    constructor(
+        private observable: Observable<T>,
+        private _value: T,
+    ) {
+        super();
+    }
+
+    get value(): T {
+        return this._value;
+    }
+
+    observe(observer: CellObserver<T>): () => void {
+        if (!this.observers.size) {
+            this.observable.observe(this.observableObserver);
+        }
+        this.observers.add(observer);
+        return () => this.unobserve(observer);
+    }
+
+    unobserve(observer: CellObserver<T>): void {
+        this.observers.delete(observer);
+        if (!this.observers.size) {
+            this.observable.unobserve(this.observableObserver);
+        }
+    }
 }
 
 class ConstCell<T> extends Cell<T> {
@@ -124,8 +197,10 @@ class ConstCell<T> extends Cell<T> {
     }
 }
 
-class MappingCell<TIn, TOut> extends Cell<TOut> {
-    private observers: [CellObserver<TOut>, CellObserver<TIn>][] = [];
+class MappingCell<TIn, TOut> extends ObserverCell<TOut> {
+    private sourceObserver: CellObserver<TIn> = value => {
+        this.emitValue(this.f(value));
+    };
 
     constructor(protected source: Cell<TIn>, protected f: (value: TIn) => TOut) {
         super();
@@ -135,32 +210,22 @@ class MappingCell<TIn, TOut> extends Cell<TOut> {
         return this.f(this.source.value);
     }
 
-    observe(observer: CellObserver<TOut>): () => void {
-        const sourceObserver = (newValue: TIn) => {
-            observer(this.f(newValue));
-        };
-        this.source.observe(sourceObserver);
-        this.observers.push([observer, sourceObserver]);
-        return () => this.unobserve(observer);
+    protected init() {
+        this.source.observe(this.sourceObserver);
     }
 
-    unobserve(observer: CellObserver<TOut>): void {
-        const i = this.observers.findIndex(([o, _]) => o === observer);
-        if (i >= 0) {
-            this.source.unobserve(this.observers[i][1]);
-            this.observers.splice(i, 1);
-        }
+    protected destroy() {
+        this.source.unobserve(this.sourceObserver);
     }
 }
 
 interface FlatMapObserver<TIn, TOut> {
-    outputObserver: CellObserver<TOut>;
     inputObserver: CellObserver<TIn>;
     intermediate: Cell<TOut>;
 }
 
 class FlatMappingCell<TIn, TOut> extends Cell<TOut> {
-    private observers: FlatMapObserver<TIn, TOut>[] = [];
+    private observers = new Map<CellObserver<TOut>, FlatMapObserver<TIn, TOut>>;
 
     constructor(protected source: Cell<TIn>, protected f: (value: TIn) => Cell<TOut>) {
         super();
@@ -172,7 +237,6 @@ class FlatMappingCell<TIn, TOut> extends Cell<TOut> {
 
     observe(observer: CellObserver<TOut>): () => void {
         const obj: FlatMapObserver<TIn, TOut> = {
-            outputObserver: observer,
             intermediate: this.f(this.source.value),
             inputObserver: () => {},
         };
@@ -184,22 +248,24 @@ class FlatMappingCell<TIn, TOut> extends Cell<TOut> {
             observer(obj.intermediate.value);
         };
         this.source.observe(obj.inputObserver);
-        this.observers.push(obj);
+        this.observers.set(observer, obj);
         return () => this.unobserve(observer);
     }
 
     unobserve(observer: CellObserver<TOut>): void {
-        const i = this.observers.findIndex(({outputObserver}) => outputObserver === observer);
-        if (i >= 0) {
-            this.observers[i].intermediate.unobserve(this.observers[i].outputObserver);
-            this.source.unobserve(this.observers[i].inputObserver);
-            this.observers.splice(i, 1);
+        const obj = this.observers.get(observer);
+        if (obj) {
+            obj.intermediate.unobserve(observer);
+            this.source.unobserve(obj.inputObserver);
+            this.observers.delete(observer);
         }
     }
 }
 
-export class ZippingCell<T> extends Cell<T> {
-    private observers: [CellObserver<T>, CellObserver<any>][] = [];
+export class ZippingCell<T> extends ObserverCell<T> {
+    private  sourceObserver = () => {
+        this.emitValue(this.apply());
+    };
 
     constructor(private sources: Cell<any>[], private apply: () => T) {
         super();
@@ -209,21 +275,12 @@ export class ZippingCell<T> extends Cell<T> {
         return this.apply();
     }
 
-    observe(observer: CellObserver<T>): () => void {
-        const sourceObserver = () => {
-            observer(this.apply());
-        };
-        this.sources.forEach(source => source.observe(sourceObserver));
-        this.observers.push([observer, sourceObserver]);
-        return () => this.unobserve(observer);
+    protected init() {
+        this.sources.forEach(source => source.observe(this.sourceObserver));
     }
 
-    unobserve(observer: CellObserver<T>): void {
-        const i = this.observers.findIndex(([o, _]) => o === observer);
-        if (i >= 0) {
-            this.sources.forEach(source => source.unobserve(this.observers[i][1]));
-            this.observers.splice(i, 1);
-        }
+    protected destroy() {
+        this.sources.forEach(source => source.unobserve(this.sourceObserver));
     }
 }
 
@@ -259,8 +316,10 @@ export function zipWith<T, TOut>(properties: Cell<T>[], f: (... values: T[]) => 
 
 const autoDependencies: Cell<unknown>[] = [];
 
-export class ComputingCell<T> extends Cell<T> {
-    private observers: [CellObserver<T>, CellObserver<any>][] = [];
+class ComputingCell<T> extends ObserverCell<T> {
+    private sourceObserver = () => {
+        this.emitValue(this.value);
+    };
 
     constructor(private sources: Set<Cell<any>>, private computation: () => T) {
         super();
@@ -272,27 +331,20 @@ export class ComputingCell<T> extends Cell<T> {
         autoDependencies.splice(0).forEach(cell => {
             if (!this.sources.has(cell)) {
                 this.sources.add(cell);
-                this.observers.forEach(([_, sourceObserver]) => cell.observe(sourceObserver));
+                if (this.observed) {
+                    cell.observe(this.sourceObserver);
+                }
             }
         });
         return value;
     }
 
-    observe(observer: CellObserver<T>): () => void {
-        const sourceObserver = () => {
-            observer(this.value);
-        };
-        this.sources.forEach(source => source.observe(sourceObserver));
-        this.observers.push([observer, sourceObserver]);
-        return () => this.unobserve(observer);
+    protected init(): void {
+        this.sources.forEach(source => source.observe(this.sourceObserver));
     }
 
-    unobserve(observer: CellObserver<T>): void {
-        const i = this.observers.findIndex(([o, _]) => o === observer);
-        if (i >= 0) {
-            this.sources.forEach(source => source.unobserve(this.observers[i][1]));
-            this.observers.splice(i, 1);
-        }
+    protected destroy(): void {
+        this.sources.forEach(source => source.unobserve(this.sourceObserver));
     }
 }
 
@@ -365,7 +417,7 @@ export class MutCellImpl<T> extends MutCell<T> {
 }
 
 class BimappingCell<T1, T2> extends MutCell<T2> {
-    private observers: [CellObserver<T2>, CellObserver<T1>][] = [];
+    private observers = new Map<CellObserver<T2>, CellObserver<T1>>;
 
     constructor(
         protected source: MutCell<T1>,
@@ -405,15 +457,15 @@ class BimappingCell<T1, T2> extends MutCell<T2> {
             observer(this.encode(newValue));
         };
         this.source.observe(sourceObserver);
-        this.observers.push([observer, sourceObserver]);
+        this.observers.set(observer, sourceObserver);
         return () => this.unobserve(observer);
     }
 
     unobserve(observer: CellObserver<T2>): void {
-        const i = this.observers.findIndex(([o, _]) => o === observer);
-        if (i >= 0) {
-            this.source.unobserve(this.observers[i][1]);
-            this.observers.splice(i, 1);
+        const sourceObserver = this.observers.get(observer);
+        if (sourceObserver) {
+            this.source.unobserve(sourceObserver);
+            this.observers.delete(observer);
         }
     }
 }

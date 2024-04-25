@@ -8,9 +8,9 @@ import { Cell, cell } from './cell';
 import { apply } from './component';
 import { Context } from './context';
 
-type ForEachInput = Cell<unknown[]> | CellIterable<unknown, unknown> | unknown[];
+export type ForEachInput = Cell<unknown[]> | CellIterable<unknown, unknown> | unknown[];
 
-type ForEachBody<TIterable extends ForEachInput> =
+export type ForEachBody<TIterable extends ForEachInput> =
     TIterable extends Cell<(infer TItem)[]>
     ? (value: Cell<TItem>, index: number) => JSX.Element
     : TIterable extends CellIterable<infer TItem, infer TKey>

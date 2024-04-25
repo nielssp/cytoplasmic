@@ -53,7 +53,7 @@ export abstract class Control<T> extends MutCell<T> {
         this.source.unobserve(observer);
     }
 
-    abstract add(element: Node, context: Context): void;
+    abstract addNode(element: Node, context: Context): void;
 }
 
 export class CheckboxControl extends Control<boolean> {
@@ -65,7 +65,7 @@ export class CheckboxControl extends Control<boolean> {
         super(value, id);
     }
 
-    add(element: Node, context: Context) {
+    addNode(element: Node, context: Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -114,7 +114,7 @@ export abstract class TextInputControl<T> extends Control<T> {
     abstract stringify(value: T): string;
     abstract parse(str: string): T;
 
-    add(element: Node, context: Context) {
+    addNode(element: Node, context: Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -260,7 +260,7 @@ export class RadioControl<T extends string|number|symbol> extends Control<boolea
         super(radioValue === radioGroup.value, id);
     }
 
-    add(element: Node, context: Context) {
+    addNode(element: Node, context: Context) {
         if (!(element instanceof HTMLElement)) {
             return;
         }
@@ -339,11 +339,11 @@ export function Field(props: {
         const children = apply(props.children, context);
         const control = 'control' in props ? props.control : new TextControl(props.value);
         children.forEach(child => {
-            control.add(child, context);
+            control.addNode(child, context);
             if (child instanceof HTMLElement) {
                 const nested = child.querySelectorAll('*');
                 for (let i = 0; i < nested.length; i++) {
-                    control.add(nested[i], context);
+                    control.addNode(nested[i], context);
                 }
             }
         });

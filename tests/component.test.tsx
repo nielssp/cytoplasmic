@@ -2,14 +2,8 @@
  * @jsx createElement
  * @jest-environment jsdom
  */
-import { Cell, cell, Component, Context, createElement, Deref, Dynamic, ElementChildren, Lazy, mount, ref, Show, Style, Unwrap } from '../src';
-import { numObservers } from './test-util';
-
-function mountTest(element: JSX.Element): {container: HTMLDivElement, destroy: () => void} {
-    const container = document.createElement('div');
-    const destroy = mount(container, element);
-    return {container, destroy};
-}
+import { Cell, cell, Component, Context, createElement, createEmitter, Deref, DocumentListener, Dynamic, ElementChildren, Lazy, Observe, ref, Show, Style, Unwrap, WindowListener } from '../src';
+import { mountTest, numObservers } from './test-util';
 
 describe('Show', () => {
     it('shows child when statically true', () => {
@@ -645,5 +639,67 @@ describe('createElement', () => {
         element.destroy();
         expect(numObservers(value)).toBe(0);
         expect(numObservers(readOnly)).toBe(0);
+    });
+});
+
+describe('Observe', () => {
+    it('observes an observable', () => {
+        const emitter = createEmitter();
+        const observer = jest.fn();
+
+        const element = mountTest(
+            <Observe from={emitter} then={observer}/>
+        );
+
+        emitter.emit(1);
+        expect(observer).toHaveBeenCalledWith(1);
+        expect(observer).toHaveBeenCalledTimes(1);
+
+        element.destroy();
+
+        emitter.emit(2);
+        expect(observer).toHaveBeenCalledTimes(1);
+
+        expect(numObservers(emitter)).toBe(0);
+    });
+});
+
+describe('WindowListener', () => {
+    it('adds an event listener', () => {
+        const observer = jest.fn();
+
+        const element = mountTest(
+            <WindowListener on='click' then={observer}/>
+        );
+
+        const event = new MouseEvent('click');
+        window.dispatchEvent(event)
+        expect(observer).toHaveBeenCalledWith(event);
+        expect(observer).toHaveBeenCalledTimes(1);
+
+        element.destroy();
+
+        window.dispatchEvent(new MouseEvent('click'))
+        expect(observer).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('DocumentListener', () => {
+    it('adds an event listener', () => {
+        const observer = jest.fn();
+
+        const element = mountTest(
+            <DocumentListener on='click' then={observer}/>
+        );
+
+        const event = new MouseEvent('click');
+        document.dispatchEvent(event)
+        expect(observer).toHaveBeenCalledWith(event);
+        expect(observer).toHaveBeenCalledTimes(1);
+
+        element.destroy();
+
+        document.dispatchEvent(new MouseEvent('click'))
+        expect(observer).toHaveBeenCalledTimes(1);
     });
 });

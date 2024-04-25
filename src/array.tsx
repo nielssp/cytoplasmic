@@ -4,7 +4,7 @@
 // http://opensource.org/licenses/MIT for more information.
 
 import { Cell, MutCell, cell } from './cell';
-import { Emitter } from './emitter';
+import { Emitter, createEmitter } from './emitter';
 
 /**
  * Create a mutable array of cells that keeps track of insertions and deletions.
@@ -164,8 +164,8 @@ class CellStreamWrapper<TItem, TKey> extends CellStream<TItem, TKey> {
 export class CellArray<TItem> extends CellStream<TItem, void> {
     private readonly cells: MutCell<MutCell<TItem>[]> = cell(Array.from(this.initialItems).map(item => cell(item)));
     readonly length = this.cells.map(cells => cells.length);
-    readonly onInsert = new Emitter<{index: number, item: Cell<TItem>}>();
-    readonly onRemove = new Emitter<number>();
+    readonly onInsert = createEmitter<{index: number, item: Cell<TItem>}>();
+    readonly onRemove = createEmitter<number>();
 
     constructor(
         private initialItems: Iterable<TItem>,
@@ -241,7 +241,7 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
      *
      * 1. The item is inserted in the internal array of cells
      * 2. An insertion event is emitted to active iterators
-     * 3. The {@see length} cell emits an update to observers
+     * 3. The {@link length} cell emits an update to observers
      *
      * @param item - The item to add to the end of the array
      */
@@ -286,8 +286,8 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
 export class CellMap<TKey, TValue> extends CellStream<TValue, TKey> {
     private readonly cells: MutCell<Map<TKey, MutCell<TValue>>> = cell(new Map(Array.from(this.initialEntries).map(([key, value]) => [key, cell(value)])));
     readonly size = this.cells.map(cells => cells.size);
-    readonly onInsert = new Emitter<{key: TKey, value: Cell<TValue>}>();
-    readonly onDelete = new Emitter<TKey>();
+    readonly onInsert = createEmitter<{key: TKey, value: Cell<TValue>}>();
+    readonly onDelete = createEmitter<TKey>();
 
     constructor(
         private initialEntries: Iterable<[TKey, TValue]> = [],
@@ -295,8 +295,16 @@ export class CellMap<TKey, TValue> extends CellStream<TValue, TKey> {
         super();
     }
 
+    get keys(): Iterable<TKey> {
+        return this.cells.value.keys();
+    }
+
     get values(): Iterable<MutCell<TValue>> {
         return this.cells.value.values();
+    }
+
+    get entries(): Iterable<[TKey, MutCell<TValue>]> {
+        return this.cells.value.entries();
     }
 
     observe(

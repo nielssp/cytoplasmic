@@ -5,6 +5,7 @@
 
 import { Cell, Input, MutCell, MutRefCell, RefCell, cell, input } from "./cell";
 import { Context } from "./context";
+import { Observable, Observer } from './emitter';
 import { ElementChildren } from "./types";
 
 function appendChildren(element: HTMLElement, children: ElementChildren[], context: Context): void {
@@ -18,7 +19,7 @@ export type ComponentProps<T> = T & {
 };
 export type Component<T = {}> = (props: ComponentProps<T>, context: Context) => JSX.Element;
 
-type ElementAttributes<T> = Record<string, string|number|boolean|Cell<string>|Cell<number>|Cell<boolean>|EventListenerOrEventListenerObject> & {
+export type ElementAttributes<T> = Record<string, string|number|boolean|Cell<string>|Cell<number>|Cell<boolean>|EventListenerOrEventListenerObject> & {
     ref?: MutRefCell<T>,
 };
 
@@ -480,4 +481,41 @@ export function mount(container: HTMLElement, ... elements: JSX.Element[]): () =
 
 export function Fragment({children}: {children: ElementChildren}): JSX.Element {
     return flatten(children);
+}
+
+export function Observe<TEvent>({from, then}: {
+    from: Observable<TEvent>,
+    then: Observer<TEvent>,
+}): JSX.Element {
+    return context => {
+        context.onInit(() => from.observe(then));
+        context.onDestroy(() => from.unobserve(then));
+        return [];
+    };
+}
+
+export function WindowListener<TKey extends keyof WindowEventMap>({on, then, capture, options}: {
+    on: TKey,
+    then: (this: Window, event: WindowEventMap[TKey]) => void,
+    capture?: boolean,
+    options?: AddEventListenerOptions,
+}): JSX.Element {
+    return context => {
+        context.onInit(() => window.addEventListener(on, then, capture ?? options));
+        context.onDestroy(() => window.removeEventListener(on, then, capture ?? options));
+        return [];
+    };
+}
+
+export function DocumentListener<TKey extends keyof DocumentEventMap>({on, then, capture, options}: {
+    on: TKey,
+    then: (this: Document, event: DocumentEventMap[TKey]) => void,
+    capture?: boolean,
+    options?: AddEventListenerOptions,
+}): JSX.Element {
+    return context => {
+        context.onInit(() => document.addEventListener(on, then, capture ?? options));
+        context.onDestroy(() => document.removeEventListener(on, then, capture ?? options));
+        return [];
+    };
 }

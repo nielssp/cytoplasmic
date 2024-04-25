@@ -1,5 +1,23 @@
 # Cytoplasmic changelog
 
+## Unreleased
+
+New features:
+
+- `Observable<T>` as common base interface for emitters and cells
+- New emitter class hierarchy, `Emitter<T>` renamed to `MutEmitter<T>`
+- `emitter.map(f)`
+- `emitter.filter(f)`
+- `Emitter.from(observable)`
+- `Cell.from(observable, initialValue)`
+- `registerTranslationProvider(provider)`
+
+New components:
+
+- `<Observe from={observable} then={observer}/>`
+- `<WindowListener on='event' then={listener}/>`
+- `<DocumentListener on='event' then={listener}/>`
+
 ## Cytoplasmic 0.6.0
 
 This is the initial release of Cytoplasmic. "Properties" have been renamed to "cells".

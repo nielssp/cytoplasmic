@@ -1,4 +1,4 @@
-import { Cell, cellArray } from '../src';
+import { Cell, cellArray, cellMap } from '../src';
 
 describe('CellArray', () => {
     test('constructor', () => {
@@ -395,5 +395,109 @@ describe('CellStream', () => {
 
         expect(insert).toHaveBeenCalledTimes(4);
         expect(remove).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('CellMap', () => {
+    test('constructor', () => {
+        const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
+
+        expect(Array.from(map.keys)).toStrictEqual(['foo', 'bar', 'baz']);
+        expect(Array.from(map.values).map(x => x.value)).toStrictEqual([1, 2, 3]);
+        expect(Array.from(map.entries).map(([k, v]) => [k, v.value])).toStrictEqual([['foo', 1], ['bar', 2], ['baz', 3]]);
+        expect(map.size.value).toBe(3);
+    });
+
+    test('observe', () => {
+        const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
+
+        const insert = jest.fn();
+        const remove = jest.fn();
+        const unobserve = map.observe(insert, remove);
+        expect(insert).toHaveBeenCalledWith(0, Array.from(map.values)[0], 'foo');
+        expect(insert).toHaveBeenCalledWith(1, Array.from(map.values)[1], 'bar');
+        expect(insert).toHaveBeenCalledWith(2, Array.from(map.values)[2], 'baz');
+
+        unobserve();
+
+        expect(insert).toHaveBeenCalledTimes(3);
+        expect(remove).toHaveBeenCalledTimes(0);
+    });
+
+    test('get', () => {
+        const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
+
+        expect(map.get('foo')).toBe(1);
+    });
+
+    test('update', () => {
+        const map = cellMap(Object.entries({foo: {bar: 2}}));
+
+        map.update('foo', x => x.bar = 5);
+        expect(map.get('foo')?.bar).toBe(5);
+    });
+
+    test('set', () => {
+        const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
+
+        const insert = jest.fn();
+        const remove = jest.fn();
+        const unobserve = map.observe(insert, remove);
+        expect(insert).toHaveBeenCalledTimes(3);
+
+        map.set('foo', 5);
+        expect(insert).toHaveBeenCalledTimes(3);
+        expect(remove).toHaveBeenCalledTimes(0);
+
+        map.set('foobar', 10);
+        expect(insert).toHaveBeenCalledWith(3, Array.from(map.values)[3], 'foobar');
+        expect(insert).toHaveBeenCalledTimes(4);
+
+        unobserve();
+
+        expect(remove).toHaveBeenCalledTimes(0);
+    });
+
+    test('delete', () => {
+        const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
+
+        const insert = jest.fn();
+        const remove = jest.fn();
+        const unobserve = map.observe(insert, remove);
+        expect(insert).toHaveBeenCalledTimes(3);
+
+        expect(map.delete('bar')).toBe(true);
+        expect(remove).toHaveBeenCalledWith(1);
+        expect(insert).toHaveBeenCalledTimes(3);
+        expect(remove).toHaveBeenCalledTimes(1);
+
+        expect(map.delete('baz')).toBe(true);
+        expect(remove).toHaveBeenCalledWith(1);
+        expect(insert).toHaveBeenCalledTimes(3);
+        expect(remove).toHaveBeenCalledTimes(2);
+
+        expect(map.delete('baz')).toBe(false);
+
+        unobserve();
+
+        expect(insert).toHaveBeenCalledTimes(3);
+        expect(remove).toHaveBeenCalledTimes(2);
+    });
+
+    test('clear', () => {
+        const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
+
+        const insert = jest.fn();
+        const remove = jest.fn();
+        const unobserve = map.observe(insert, remove);
+        expect(insert).toHaveBeenCalledTimes(3);
+
+        map.clear();
+        expect(remove).toHaveBeenCalledWith(0);
+
+        unobserve();
+
+        expect(insert).toHaveBeenCalledTimes(3);
+        expect(remove).toHaveBeenCalledTimes(3);
     });
 });
