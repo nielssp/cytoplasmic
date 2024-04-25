@@ -3,7 +3,7 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Cell, ZippingCell, constant } from "./cell";
+import { Cell, constant, zipWith } from "./cell";
 import { Observable } from './emitter';
 
 export type ParameterValue = string | number | Cell<string> | Cell<number>;
@@ -130,7 +130,7 @@ export function registerTranslationProvider(provider: TranslationProvider): Tran
 export function _(msgid: string, parameters: Record<string, ParameterValue> = {}): Cell <string> {
     const sources = Object.values(parameters).filter(source => source instanceof Cell) as Cell<any>[];
     sources.push(globalLanguageChangeCell);
-    return new ZippingCell(sources, () => {
+    return zipWith(sources, (..._) => {
         const providerParameters: TranslationParameters = {};
         for (let key in parameters) {
             const value = parameters[key];
@@ -169,7 +169,7 @@ export function _n(
 ): Cell<string> {
     const sources = Object.values(parameters).filter(source => source instanceof Cell) as Cell<any>[];
     sources.push(globalLanguageChangeCell);
-    return new ZippingCell(sources, () => {
+    return zipWith(sources, (..._) => {
         const providerParameters: {n: number} & TranslationParameters = {
             n: parameters.n instanceof Cell ? parameters.n.value : parameters.n,
         };

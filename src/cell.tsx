@@ -308,6 +308,7 @@ export function zipWith<T1, T2, T3, T4, T5, TOut>(properties: [Cell<T1>, Cell<T2
 export function zipWith<T1, T2, T3, T4, TOut>(properties: [Cell<T1>, Cell<T2>, Cell<T3>, Cell<T4>], f: (a: T1, b: T2, c: T3, d: T4) => TOut): Cell<TOut>;
 export function zipWith<T1, T2, T3, TOut>(properties: [Cell<T1>, Cell<T2>, Cell<T3>], f: (a: T1, b: T2, c: T3) => TOut): Cell<TOut>;
 export function zipWith<T1, T2, TOut>(properties: [Cell<T1>, Cell<T2>], f: (a: T1, b: T2) => TOut): Cell<TOut>;
+export function zipWith<T, TOut>(properties: Cell<T>[], f: (... values: T[]) => TOut): Cell<TOut>;
 export function zipWith<T, TOut>(properties: Cell<T>[], f: (... values: T[]) => TOut): Cell<TOut> {
     return new ZippingCell(properties, () => {
         return f(... properties.map(p => p.value));
@@ -348,8 +349,38 @@ class ComputingCell<T> extends ObserverCell<T> {
     }
 }
 
-export function $<T>(computation: Cell<T>): T;
+/**
+ * Utility function for creating computational cells that automatically track
+ * dependencies. Use {@link zipWith} if you want to explicitly specify
+ * dependencies. The same function is used both to unwrap cells and to create
+ * computed cells.
+ *
+ * @param cell - A cell to track and unwrap.
+ * @returns The value of the cell.
+ * @experimental
+ */
+export function $<T>(cell: Cell<T>): T;
+/**
+ * Create a computed cell. Do not use `cell.value` inside the computation,
+ * always us `$(cell)` to unwrap cells to properly track dependencies.
+ *
+ * @example
+ * In the following example `c` and `d` are equivalent:
+ * ```tsx
+ * const a = cell(1);
+ * const b = cell(2);
+ * const c = $(() => $(a) + $(b));
+ * const d = zipWith([a, b], (a, b) => a + b);
+ * ```
+ *
+ * @param computation - A function that can unwrap cells using `$(cell)` and
+ * compute a resulting value.
+ * @returns A cell that computes its value based on the provided computation
+ * function.
+ */
 export function $<T>(computation: (() => T)): Cell<T>;
+/**
+ */
 export function $<T>(computation: Cell<T> | (() => T)): T | Cell<T> {
     if (computation instanceof Cell) {
         autoDependencies.push(computation);
