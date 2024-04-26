@@ -8,12 +8,6 @@ import { Context } from "./context";
 import { Observable, Observer } from './emitter';
 import { ElementChildren } from "./types";
 
-function appendChildren(element: HTMLElement, children: ElementChildren[], context: Context): void {
-    apply(children, context).forEach(child => {
-        element.appendChild(child);
-    });
-}
-
 export type ComponentProps<T> = T & {
     children?: ElementChildren,
 };
@@ -23,9 +17,21 @@ export type ElementAttributes<T> = Record<string, string|number|boolean|Cell<str
     ref?: MutRefCell<T>,
 };
 
-export function createElement<TElem extends keyof HTMLElementTagNameMap>(name: TElem, properties: ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChildren[]): JSX.Element;
-export function createElement<T extends {}>(name: Component<T>, properties: T, ... children: ElementChildren[]): JSX.Element;
-export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps extends {}>(name: TElem|Component<TProps>, properties: TProps & ElementAttributes<HTMLElementTagNameMap[TElem]>, ... children: ElementChildren[]): JSX.Element {
+export function createElement<TElem extends keyof HTMLElementTagNameMap>(
+    name: TElem,
+    properties: ElementAttributes<HTMLElementTagNameMap[TElem]>,
+    ... children: ElementChildren[]
+): JSX.Element;
+export function createElement<T extends {}>(
+    name: Component<T>,
+    properties: T,
+    ... children: ElementChildren[]
+): JSX.Element;
+export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps extends {}>(
+    name: TElem|Component<TProps>,
+    properties: TProps & ElementAttributes<HTMLElementTagNameMap[TElem]>,
+    ... children: ElementChildren[]
+): JSX.Element {
     if (typeof name === 'string') {
         return context => {
             const e = document.createElement(name);
@@ -123,7 +129,9 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
                     }
                 }
             }
-            appendChildren(e, children, context);
+            apply(children, context).forEach(child => {
+                e.appendChild(child);
+            });
             return e;
         };
     } else {

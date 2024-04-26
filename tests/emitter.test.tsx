@@ -98,6 +98,20 @@ describe('Emitter', () => {
 
         expect(numObservers(emitter)).toBe(0);
         expect(numObservers(indexed)).toBe(0);
+
+        const indexed2 = emitter.indexed((event, index) => `${index}:${event}`);
+
+        observer.mockReset();
+        indexed2.observe(observer);
+
+        emitter.emit(5);
+        expect(observer).toHaveBeenCalledWith('0:5');
+
+        emitter.emit(10);
+        expect(observer).toHaveBeenCalledWith('1:10');
+
+        emitter.emit(0);
+        expect(observer).toHaveBeenCalledWith('2:0');
     });
 
     it('can be created from an observable', () => {

@@ -379,8 +379,6 @@ export function $<T>(cell: Cell<T>): T;
  * function.
  */
 export function $<T>(computation: (() => T)): Cell<T>;
-/**
- */
 export function $<T>(computation: Cell<T> | (() => T)): T | Cell<T> {
     if (computation instanceof Cell) {
         autoDependencies.push(computation);
