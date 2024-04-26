@@ -24,6 +24,17 @@ The API documentaion is available here: https://nielssp.github.io/cytoplasmic/
 - [Counter (7GUIs)](https://codesandbox.io/p/sandbox/shy-water-6j53j5)
 - [Temperature Converter (7GUIs)](https://codesandbox.io/p/sandbox/objective-leavitt-2hw7hn)
 
+## Getting started
+
+To set up a minimal Cytoplasmic project using [Vite](https://vitejs.dev/) for bundling, you can type the following commands:
+
+```
+npx degit nielssp/cytoplasmic/template my-app
+cd my-app
+npm install
+npm run dev
+```
+
 ## First component
 
 Cytoplasmic allows you to create DOM-elements using JSX-syntax.

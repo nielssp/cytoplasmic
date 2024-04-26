@@ -5,7 +5,8 @@
 Clone template:
 
 ```
-npx degit nielssp/cytoplasmic/template
+npx degit nielssp/cytoplasmic/template my-app
+cd my-app
 ```
 
 Install dependencies:
