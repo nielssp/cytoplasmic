@@ -225,7 +225,7 @@ export abstract class Cell<T> implements Observable<T> {
      * an initial value.
      *
      * **N.B.** Unless observed, the value of the resulting cell will not
-     * update when the value of this cell updates.
+     * update when the observable emits events.
      *
      * @param observable - An observable.
      * @param initialValue - The initial value of the cell.

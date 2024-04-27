@@ -320,7 +320,7 @@ export function Switch<
     TProp extends string | symbol | number,
     TObj extends {[k in TProp]: string | symbol | number}
 >(props: {
-    with: Input<TObj>,
+    with: Input<TObj | undefined>,
     on: TProp,
     children: {
         [TName in TObj[TProp]]: (cell: Cell<TObj & {[k in TProp]: TName}>) => JSX.Element;
@@ -342,7 +342,7 @@ export function Switch<
     TProp extends string | symbol | number,
     TObj extends {[k in TProp]: string | symbol | number}
 >(props: {
-    with: Input<TObj>,
+    with: Input<TObj | undefined>,
     on: TProp,
     children: {
         [TName in TObj[TProp]]?: (cell: Cell<TObj & {[k in TProp]: TName}>) => JSX.Element;
@@ -371,7 +371,7 @@ export function Switch<
 export function Switch<
     TProp extends string | symbol | number,
 >(props: {
-    on: Input<TProp>,
+    on: Input<TProp | undefined>,
     children: {
         [TName in TProp]: JSX.Element;
     },
@@ -388,7 +388,7 @@ export function Switch<
 export function Switch<
     TProp extends string | symbol | number,
 >(props: {
-    on: Input<TProp>,
+    on: Input<TProp | undefined>,
     children: {
         [TName in TProp]?: JSX.Element;
     },
@@ -398,14 +398,14 @@ export function Switch<
     TProp extends string | symbol | number,
     TObj extends {[k in TProp]: string | symbol | number}
 >(props: {
-    with: Input<TObj>,
+    with: Input<TObj | undefined>,
     on: TProp,
     children: {
         [TName in TObj[TProp]]?: (cell: Cell<TObj & {[k in TProp]: TName}>) => JSX.Element;
     },
     else?: ElementChildren,
 } | {
-    on: Input<TProp>,
+    on: Input<TProp | undefined>,
     children: {
         [TName in TProp]?: JSX.Element;
     },
@@ -418,8 +418,8 @@ export function Switch<
             const childNodes: Node[] = [];
             let previous: TObj[TProp] | undefined;
             let subcontext: Context|undefined;
-            const observer = (obj: TObj) => {
-                const value = obj[props.on];
+            const observer = (obj: TObj | undefined) => {
+                const value = obj?.[props.on];
                 if (value === previous) {
                     return;
                 }
@@ -431,10 +431,10 @@ export function Switch<
                     childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
                     subcontext.destroy();
                 }
-                const branch = props.children[value];
+                const branch = value !== undefined && value !== null ? props.children[value] : undefined;
                 if (branch) {
                     subcontext = new Context(context);
-                    apply(branch(objCell), subcontext).forEach(node => {
+                    apply(branch(objCell as Cell<TObj>), subcontext).forEach(node => {
                         parent.insertBefore(node, marker);
                         childNodes.push(node);
                     });
@@ -463,7 +463,7 @@ export function Switch<
             const childNodes: Node[] = [];
             let previous: TProp | undefined;
             let subcontext: Context|undefined;
-            const observer = (value: TProp) => {
+            const observer = (value: TProp | undefined) => {
                 if (value === previous) {
                     return;
                 }
@@ -475,7 +475,7 @@ export function Switch<
                     childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
                     subcontext.destroy();
                 }
-                const branch = props.children[value];
+                const branch = value !== undefined && value !== null ? props.children[value] : undefined;
                 if (branch) {
                     subcontext = new Context(context);
                     apply(branch, subcontext).forEach(node => {
