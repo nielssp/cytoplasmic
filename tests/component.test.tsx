@@ -2,7 +2,7 @@
  * @jsx createElement
  * @jest-environment jsdom
  */
-import { Cell, cell, Component, Context, createElement, createEmitter, Deref, DocumentListener, Dynamic, ElementChildren, Lazy, Observe, ref, Show, Style, Unwrap, WindowListener } from '../src';
+import { Cell, cell, Component, Context, createElement, createEmitter, Deref, DocumentListener, Dynamic, ElementChildren, Lazy, Observe, ref, Show, Style, Switch, Unwrap, WindowListener } from '../src';
 import { mountTest, numObservers } from './test-util';
 
 describe('Show', () => {
@@ -110,6 +110,86 @@ describe('Show', () => {
 
         expect(numObservers(condition)).toBe(0);
         expect(numObservers(num)).toBe(0);
+    });
+});
+
+describe('Switch', () => {
+    it('shows correct branch', () => {
+        const a = cell<{type: 'a', a: number} | {type: 'b', b: string}>({type: 'a', a: 5});
+
+        const element = mountTest(
+            <Switch with={a} on='type'>{{
+                'a': a => <span>a: {a.props.a}</span>,
+                'b': b => <span>b: {b.props.b}</span>,
+            }}</Switch>
+        );
+        expect(element.container.textContent).toBe('a: 5');
+
+        a.update(a => a.type === 'a' ? a.a = 10 : {});
+        expect(element.container.textContent).toBe('a: 10');
+
+        a.value = {type: 'b', b: 'foo'};
+        expect(element.container.textContent).toBe('b: foo');
+
+        element.destroy();
+
+        expect(numObservers(a)).toBe(0);
+    });
+
+    it('shows else branch when not matched', () => {
+        const a = cell<{type: 'a', a: number} | {type: 'b', b: string}>({type: 'a', a: 5});
+
+        const element = mountTest(
+            <Switch with={a} on='type' else='default'>{{
+                'b': b => <span>b: {b.props.b}</span>,
+            }}</Switch>
+        );
+        expect(element.container.textContent).toBe('default');
+
+        a.value = {type: 'b', b: 'foo'};
+        expect(element.container.textContent).toBe('b: foo');
+
+        element.destroy();
+
+        expect(numObservers(a)).toBe(0);
+    });
+
+    it('shows correct branch for enums', () => {
+        const a = cell<'foo' | 'bar' | 'baz'>('foo');
+
+        const element = mountTest(
+            <Switch on={a}>{{
+                'foo': <span>a is foo</span>,
+                'bar': <span>a is bar</span>,
+                'baz': <span>a is baz</span>,
+            }}</Switch>
+        );
+        expect(element.container.textContent).toBe('a is foo');
+
+        a.value = 'bar';
+        expect(element.container.textContent).toBe('a is bar');
+
+        element.destroy();
+
+        expect(numObservers(a)).toBe(0);
+    });
+
+    it('shows else branch for enums when not matched', () => {
+        const a = cell<'foo' | 'bar' | 'baz'>('foo');
+
+        const element = mountTest(
+            <Switch on={a} else={<span>default</span>}>{{
+                'foo': <span>a is foo</span>,
+            }}</Switch>
+        );
+        expect(element.container.textContent).toBe('a is foo');
+
+        a.value = 'bar';
+        expect(element.container.textContent).toBe('default');
+
+        element.destroy();
+
+        expect(numObservers(a)).toBe(0);
     });
 });
 

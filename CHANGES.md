@@ -1,5 +1,11 @@
 # Cytoplasmic changelog
 
+## Unreleased
+
+New features
+
+- `<Switch>`
+
 ## Cytoplasmic 0.7.0
 
 New features:

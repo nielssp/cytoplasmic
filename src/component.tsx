@@ -213,9 +213,16 @@ export function apply(elements: ElementChildren, context: Context): Node[] {
 /**
  * Conditionally toggle one or more elements.
  *
+ * @example
+ * ```tsx
+ * <Show when={condition} else={<span>false</span>}>
+ *     <span>true</span>
+ * </Show>
+ * ```
+ *
  * @param props.children - Elements to toggle
  * @param props.when - Condition cell or raw value.
- * @param props.elese - Alternative to show when condition is falsy.
+ * @param props.else - Alternative to show when condition is falsy.
  * @category Components
  */
 export function Show(props: {
@@ -275,6 +282,227 @@ export function Show(props: {
             when.unobserve(observer);
             subcontext?.destroy();
         });
+        return marker;
+    };
+}
+
+/**
+ * A component that switches between different branches based on the value of a
+ * property on a cell. Designed for use with tagged unions and supports type
+ * narrowing. Checks for exhaustiveness when a default branch isn't provided
+ * via the `else` property.
+ * 
+ * @example
+ * ```tsx
+ * type MyTaggedUnion = {
+ *   type: 'num',
+ *   num: number,
+ * } | { 
+ *   type: 'str',
+ *   str: string,
+ * };
+ *
+ * const a = cell<MyTaggedUnion>({type: 'num', num: 5});
+ *
+ * <Switch with={a} on='type'>{{
+ *   'num': a => <span>The number is {a.props.num}</span>,
+ *   'str': a => <span>The string is {a.props.str}</span>,
+ * }}</Switch>
+ * ```
+ * @param props.with - The object cell to pass to the selected branch.
+ * @param props.on - The property of the object to select a branch based on.
+ * @param props.children - An object of branches. The key is the value to compare the
+ * property with and the value is a function that accepts the type narrowed
+ * object and returns an Element.
+ * @category Components
+ */
+export function Switch<
+    TProp extends string | symbol | number,
+    TObj extends {[k in TProp]: string | symbol | number}
+>(props: {
+    with: Input<TObj>,
+    on: TProp,
+    children: {
+        [TName in TObj[TProp]]: (cell: Cell<TObj & {[k in TProp]: TName}>) => JSX.Element;
+    },
+}): JSX.Element;
+/**
+ * Same as above but does not require a branch for every variation of the input
+ * type.
+ *
+ * @param props.with - The object cell to pass to the selected branch.
+ * @param props.on - The property of the object to select a branch based on.
+ * @param props.children - An object of branches. The key is the value to compare the
+ * property with and the value is a function that accepts the type narrowed
+ * object and returns an Element.
+ * @param props.else - Alternative element to render when none of the branches
+ * provided in `props.children` match the input.
+ */
+export function Switch<
+    TProp extends string | symbol | number,
+    TObj extends {[k in TProp]: string | symbol | number}
+>(props: {
+    with: Input<TObj>,
+    on: TProp,
+    children: {
+        [TName in TObj[TProp]]?: (cell: Cell<TObj & {[k in TProp]: TName}>) => JSX.Element;
+    },
+    else: ElementChildren,
+}): JSX.Element;
+/**
+ * A simple switch without type narrowing for use with enums. The variant
+ * without an `else`-property does implement exhaustiveness checking.
+ *
+ * @example
+ * ```tsx
+ * type MyEnum = 'foo' | 'bar';
+ * const a = cell<MyEnum>('foo');
+ *
+ * <Switch on={a}>{{
+ *    'foo': <span>a is foo</span>,
+ *    'bar': <span>a is bar</span>,
+ * }}</Switch>
+ * ```
+ *
+ * @param props.on - The value to select a branch based on.
+ * @param props.children - An object of branches. The key is the value to
+ * compare the input value with and the value is an element.
+ */
+export function Switch<
+    TProp extends string | symbol | number,
+>(props: {
+    on: Input<TProp>,
+    children: {
+        [TName in TProp]: JSX.Element;
+    },
+}): JSX.Element;
+/**
+ * Same as above but does not require a branch for every input.
+ *
+ * @param props.on - The value to select a branch based on.
+ * @param props.children - An object of branches. The key is the value to
+ * compare the input value with and the value is an element.
+ * @param props.else - Alternative element to render when none of the branches
+ * provided in `props.children` match the input.
+ */
+export function Switch<
+    TProp extends string | symbol | number,
+>(props: {
+    on: Input<TProp>,
+    children: {
+        [TName in TProp]?: JSX.Element;
+    },
+    else: ElementChildren,
+}): JSX.Element;
+export function Switch<
+    TProp extends string | symbol | number,
+    TObj extends {[k in TProp]: string | symbol | number}
+>(props: {
+    with: Input<TObj>,
+    on: TProp,
+    children: {
+        [TName in TObj[TProp]]?: (cell: Cell<TObj & {[k in TProp]: TName}>) => JSX.Element;
+    },
+    else?: ElementChildren,
+} | {
+    on: Input<TProp>,
+    children: {
+        [TName in TProp]?: JSX.Element;
+    },
+    else?: ElementChildren,
+}): JSX.Element {
+    return context => {
+        const marker = document.createComment('<Switch>');
+        if ('with' in props) {
+            const objCell = input(props.with);
+            const childNodes: Node[] = [];
+            let previous: TObj[TProp] | undefined;
+            let subcontext: Context|undefined;
+            const observer = (obj: TObj) => {
+                const value = obj[props.on];
+                if (value === previous) {
+                    return;
+                }
+                if (!marker.parentElement) {
+                    return; // shouldn't be possible
+                }
+                const parent = marker.parentElement;
+                if (subcontext) {
+                    childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
+                    subcontext.destroy();
+                }
+                const branch = props.children[value];
+                if (branch) {
+                    subcontext = new Context(context);
+                    apply(branch(objCell), subcontext).forEach(node => {
+                        parent.insertBefore(node, marker);
+                        childNodes.push(node);
+                    });
+                    subcontext.init();
+                } else if (props.else) {
+                    subcontext = new Context(context);
+                    apply(props.else, subcontext).forEach(node => {
+                        parent.insertBefore(node, marker);
+                        childNodes.push(node);
+                    });
+                    subcontext.init();
+                }
+                previous = value;
+            };
+            context.onInit(() => {
+                objCell.getAndObserve(observer);
+            });
+            context.onDestroy(() => {
+                childNodes.forEach(node => node.parentElement?.removeChild(node));
+                childNodes.splice(0);
+                objCell.unobserve(observer);
+                subcontext?.destroy();
+            });
+        } else {
+            const objCell = input(props.on);
+            const childNodes: Node[] = [];
+            let previous: TProp | undefined;
+            let subcontext: Context|undefined;
+            const observer = (value: TProp) => {
+                if (value === previous) {
+                    return;
+                }
+                if (!marker.parentElement) {
+                    return; // shouldn't be possible
+                }
+                const parent = marker.parentElement;
+                if (subcontext) {
+                    childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
+                    subcontext.destroy();
+                }
+                const branch = props.children[value];
+                if (branch) {
+                    subcontext = new Context(context);
+                    apply(branch, subcontext).forEach(node => {
+                        parent.insertBefore(node, marker);
+                        childNodes.push(node);
+                    });
+                    subcontext.init();
+                } else if (props.else) {
+                    subcontext = new Context(context);
+                    apply(props.else, subcontext).forEach(node => {
+                        parent.insertBefore(node, marker);
+                        childNodes.push(node);
+                    });
+                    subcontext.init();
+                }
+                previous = value;
+            };
+            context.onInit(() => {
+                objCell.getAndObserve(observer);
+            });
+            context.onDestroy(() => {
+                childNodes.forEach(node => node.parentElement?.removeChild(node));
+                childNodes.splice(0);
+                objCell.unobserve(observer);
+                subcontext?.destroy();
+            });
+        }
         return marker;
     };
 }
