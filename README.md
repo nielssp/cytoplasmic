@@ -307,10 +307,21 @@ function ListWithCellArray() {
 
 In cell arrays each item is a cell which makes it possible to efficiently update the content of individual cells. Additionally removals and insertions are handled efficiently.
 
-## Dynamically show elements
+## Lazily loaded components
 
-* `<Lazy>`
-* `<Dynamic>`
+```tsx
+<Lazy else='loading...'>{() => import('./my-component').then(m => <m.MyComponent/>)}</Lazy>
+```
+
+## Change omponent dynamically
+
+```tsx
+const component = ref<Component<{}>>();
+
+component.value = MyComponent;
+
+<Dynamic component={component} else='no component'/>
+```
 
 ## Utilities
 
@@ -359,3 +370,16 @@ function Button({label}: {label: string}, context: Context) {
 }
 ```
 
+## I18n utilities
+
+```
+registerTranslationProvider(provider);
+```
+
+```
+_('Hello, {world}!', {world: cell('World')})
+```
+
+```
+_n('{n} item', '{n} items', {n: cell(5)})
+```

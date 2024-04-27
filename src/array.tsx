@@ -14,15 +14,22 @@ import { Emitter, createEmitter } from './emitter';
  *
  * @param initialItems - The initial items of the array
  * @returns A reactive cell array
+ * @category Cell streams and arrays
  */
 export function cellArray<TItem>(initialItems: Iterable<TItem> = []): CellArray<TItem> {
     return new CellArray(initialItems);
 }
 
+/**
+ * @category Cell streams and arrays
+ */
 export function cellMap<TKey, TValue>(initialEntries: Iterable<[TKey, TValue]> = []): CellMap<TKey, TValue> {
     return new CellMap(initialEntries);
 }
 
+/**
+ * @category Cell streams and arrays
+ */
 export interface CellIterable<TValue, TKey> {
     observe(
         insert: (index: number, item: TValue, key: TKey) => void,
@@ -30,6 +37,9 @@ export interface CellIterable<TValue, TKey> {
     ): () => void;
 }
 
+/**
+ * @category Cell streams and arrays
+ */
 export abstract class CellStream<TItem, TKey> implements CellIterable<Cell<TItem>, TKey>  {
     abstract observe(
         insert: (index: number, item: Cell<TItem>, key: TKey) => void,
@@ -143,6 +153,9 @@ export abstract class CellStream<TItem, TKey> implements CellIterable<Cell<TItem
     }
 }
 
+/**
+ * @category Cell streams and arrays
+ */
 class CellStreamWrapper<TItem, TKey> extends CellStream<TItem, TKey> {
     constructor(
         private f: (
@@ -161,6 +174,9 @@ class CellStreamWrapper<TItem, TKey> extends CellStream<TItem, TKey> {
     }
 }
 
+/**
+ * @category Cell streams and arrays
+ */
 export class CellArray<TItem> extends CellStream<TItem, void> {
     private readonly cells: MutCell<MutCell<TItem>[]> = cell(Array.from(this.initialItems).map(item => cell(item)));
     readonly length = this.cells.map(cells => cells.length);
@@ -283,6 +299,9 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
     }
 }
 
+/**
+ * @category Cell streams and arrays
+ */
 export class CellMap<TKey, TValue> extends CellStream<TValue, TKey> {
     private readonly cells: MutCell<Map<TKey, MutCell<TValue>>> = cell(new Map(Array.from(this.initialEntries).map(([key, value]) => [key, cell(value)])));
     readonly size = this.cells.map(cells => cells.size);

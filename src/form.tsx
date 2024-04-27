@@ -9,6 +9,11 @@ import { Context } from "./context";
 
 let nextId = 0;
 
+/**
+ * Create a unique element id.
+ *
+ * @category Utilities
+ */
 export function createId(prefix: string): string {
     let id;
     do {
@@ -18,6 +23,9 @@ export function createId(prefix: string): string {
     return id;
 }
 
+/**
+ * @category Form controls
+ */
 export abstract class Control<T> extends MutCell<T> {
     protected source: MutCell<T>;
     readonly disabled = cell(false);
@@ -56,6 +64,10 @@ export abstract class Control<T> extends MutCell<T> {
     abstract addNode(element: Node, context: Context): void;
 }
 
+
+/**
+ * @category Form controls
+ */
 export class CheckboxControl extends Control<boolean> {
     private inputs: HTMLElement[] = [];
     constructor(
@@ -101,6 +113,10 @@ export class CheckboxControl extends Control<boolean> {
     }
 }
 
+
+/**
+ * @category Form controls
+ */
 export abstract class TextInputControl<T> extends Control<T> {
     private inputs: (HTMLInputElement|HTMLTextAreaElement)[] = [];
     constructor(
@@ -192,6 +208,10 @@ export abstract class TextInputControl<T> extends Control<T> {
     }
 }
 
+
+/**
+ * @category Form controls
+ */
 export class TextControl extends TextInputControl<string> {
     constructor(
         value: string|MutCell<string>,
@@ -213,6 +233,10 @@ export class TextControl extends TextInputControl<string> {
     }
 }
 
+
+/**
+ * @category Form controls
+ */
 export class IntControl extends TextInputControl<number> {
     min = Number.MIN_SAFE_INTEGER;
     max = Number.MAX_SAFE_INTEGER;
@@ -249,6 +273,10 @@ export class IntControl extends TextInputControl<number> {
     }
 }
 
+
+/**
+ * @category Form controls
+ */
 export class RadioControl<T extends string|number|symbol> extends Control<boolean> {
     private inputs: HTMLElement[] = [];
     constructor(
@@ -310,6 +338,10 @@ export class RadioControl<T extends string|number|symbol> extends Control<boolea
     }
 }
 
+
+/**
+ * @category Form controls
+ */
 export class RadioGroup<T extends string|number|symbol> extends MutCellImpl<T> {
     readonly disabled = cell(false);
     readonly radios = {} as Record<T, RadioControl<T>>;
@@ -328,6 +360,10 @@ export class RadioGroup<T extends string|number|symbol> extends MutCellImpl<T> {
     }
 }
 
+
+/**
+ * @category Form controls
+ */
 export function Field(props: {
     children: JSX.Element|JSX.Element[],
     value: MutCell<string>|string,

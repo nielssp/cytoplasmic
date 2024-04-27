@@ -8,22 +8,46 @@ import { Context } from "./context";
 import { Observable, Observer } from './emitter';
 import { ElementChildren } from "./types";
 
+/**
+ * Component properties type.
+ *
+ * @category Components
+ */
 export type ComponentProps<T> = T & {
     children?: ElementChildren,
 };
+
+/**
+ * Component type.
+ *
+ * @category Components
+ */
 export type Component<T = {}> = (props: ComponentProps<T>, context: Context) => JSX.Element;
 
-export type ElementAttributes<T> = Record<string, string|number|boolean|Cell<string>|Cell<number>|Cell<boolean>|EventListenerOrEventListenerObject> & {
+/**
+ * Element attributes.
+ *
+ * @category Internals
+ */
+export type ElementAttributes<T> = Record<string, string | number | boolean | Cell<string> | Cell<number> | Cell<boolean> | EventListenerOrEventListenerObject> & {
     ref?: MutRefCell<T>,
 };
 
+/**
+ * JSX factory function for creating HTML elements.
+ *
+ * @category Components
+ */
 export function createElement<TElem extends keyof HTMLElementTagNameMap>(
     name: TElem,
     properties: ElementAttributes<HTMLElementTagNameMap[TElem]>,
     ... children: ElementChildren[]
 ): JSX.Element;
+/**
+ * JSX factory function for initializing components.
+ */
 export function createElement<T extends {}>(
-    name: Component<T>,
+    component: Component<T>,
     properties: T,
     ... children: ElementChildren[]
 ): JSX.Element;
@@ -142,10 +166,20 @@ export function createElement<TElem extends keyof HTMLElementTagNameMap, TProps 
     }
 }
 
+/**
+ * Flattens elements into a single JSX Element.
+ *
+ * @category Internals
+ */
 export function flatten(elements: ElementChildren): JSX.Element {
     return context => apply(elements, context);
 }
 
+/**
+ * Turns elements into an array of nodes.
+ *
+ * @category Internals
+ */
 export function apply(elements: ElementChildren, context: Context): Node[] {
     const result: Node[] = [];
     if (typeof elements === 'string') {
@@ -176,6 +210,14 @@ export function apply(elements: ElementChildren, context: Context): Node[] {
     return result;
 }
 
+/**
+ * Conditionally toggle one or more elements.
+ *
+ * @param props.children - Elements to toggle
+ * @param props.when - Condition cell or raw value.
+ * @param props.elese - Alternative to show when condition is falsy.
+ * @category Components
+ */
 export function Show(props: {
     children: ElementChildren,
     when: Input<any>,
@@ -237,6 +279,9 @@ export function Show(props: {
     };
 }
 
+/**
+ * @category Components
+ */
 export function Deref<T>(props: {
     children: (value: Cell<T>) => ElementChildren
     ref: Cell<T | undefined | null>,
@@ -303,6 +348,9 @@ export function Deref<T>(props: {
     };
 }
 
+/**
+ * @category Components
+ */
 export function Unwrap<T>(props: {
     children: (value: T) => ElementChildren
     from: Cell<T | undefined | null>,
@@ -352,6 +400,9 @@ export function Unwrap<T>(props: {
     };
 }
 
+/**
+ * @category Components
+ */
 export function Lazy(props: {
     children: () => Promise<ElementChildren>
     else?: ElementChildren,
@@ -401,6 +452,9 @@ export function Lazy(props: {
     };
 }
 
+/**
+ * @category Components
+ */
 export function Dynamic<T>(props: T & {
     component: RefCell<Component<T>>,
     else?: ElementChildren,
@@ -447,6 +501,9 @@ export function Dynamic<T>(props: T & {
     };
 }
 
+/**
+ * @category Components
+ */
 export function Style(props: {
     children: ElementChildren
 } & {
@@ -473,10 +530,15 @@ export function Style(props: {
     };
 }
 
-export function handle<TEvent>(f?: (ev: TEvent) => void): (ev: TEvent) => void {
-    return f || (() => {});
-}
-
+/**
+ * Create a context and attach the JSX elements to the DOM.
+ *
+ * @param container - The container to append the elements to.
+ * @param elements - The elements to attach.
+ * @returns A function that can be called to destroy the context and clean up
+ * all observers. It will also wipe the content of the container.
+ * @category Components
+ */
 export function mount(container: HTMLElement, ... elements: JSX.Element[]): () => void {
     const context = new Context();
     apply(elements, context).forEach(e => container.appendChild(e));
@@ -487,10 +549,16 @@ export function mount(container: HTMLElement, ... elements: JSX.Element[]): () =
     };
 }
 
+/**
+ * @category Components
+ */
 export function Fragment({children}: {children: ElementChildren}): JSX.Element {
     return flatten(children);
 }
 
+/**
+ * @category Components
+ */
 export function Observe<TEvent>({from, then}: {
     from: Observable<TEvent>,
     then: Observer<TEvent>,
@@ -502,6 +570,9 @@ export function Observe<TEvent>({from, then}: {
     };
 }
 
+/**
+ * @category Components
+ */
 export function WindowListener<TKey extends keyof WindowEventMap>({on, then, capture, options}: {
     on: TKey,
     then: (this: Window, event: WindowEventMap[TKey]) => void,
@@ -515,6 +586,9 @@ export function WindowListener<TKey extends keyof WindowEventMap>({on, then, cap
     };
 }
 
+/**
+ * @category Components
+ */
 export function DocumentListener<TKey extends keyof DocumentEventMap>({on, then, capture, options}: {
     on: TKey,
     then: (this: Document, event: DocumentEventMap[TKey]) => void,

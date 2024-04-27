@@ -6,6 +6,9 @@
 import { EventAttributes, HTMLAttributes } from "tsx-dom-types";
 import { Cell, MutRefCell } from "./cell";
 
+/**
+ * @category Components
+ */
 export type ElementChildren = HTMLElement | string | number | boolean | Cell<string> | Cell<number> | Cell<boolean> | JSX.Element | ElementChildren[];
 
 export type IntrinsicElementsHTML = {

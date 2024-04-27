@@ -3,10 +3,18 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
+/**
+ * Observer function type.
+ *
+ * @param event - The emitted event.
+ * @category Emitters
+ */
 export type Observer<TEvent> = (event: TEvent) => void;
 
 /**
  * Common interface for {@link Emitter} and {@link Cell}.
+ *
+ * @category Internals
  */
 export interface Observable<TEvent> {
     /**
@@ -29,6 +37,7 @@ export interface Observable<TEvent> {
  * Create an event emitter. Use {@link MutEmitter.emit} to emit events.
  * 
  * @returns A mutable event emitter
+ * @category Emitters
  */
 export function createEmitter<TEvent>(): MutEmitter<TEvent> {
     return new MutEmitter;
@@ -43,6 +52,7 @@ export function createEmitter<TEvent>(): MutEmitter<TEvent> {
  * event.
  * @param start - Whether to start the emitter.
  * @returns An emitter.
+ * @category Emitters
  */
 export function createInterval(ms: number, start: boolean = true): IntervalEmitter {
     return new IntervalEmitter(ms, start);
@@ -55,6 +65,7 @@ export function createInterval(ms: number, start: boolean = true): IntervalEmitt
  *
  * @param ms - Delay in milliseconds before the event is fired.
  * @returns An Emitter
+ * @category Emitters
  */
 export function createTimeout(ms: number): TimeoutEmitter {
     return new TimeoutEmitter(ms);
@@ -62,6 +73,7 @@ export function createTimeout(ms: number): TimeoutEmitter {
 
 /**
  * An event emitter
+ * @category Emitters
  */
 export abstract class Emitter<TEvent> implements Observable<TEvent> {
     abstract observe(observer: Observer<TEvent>): () => void;
@@ -141,19 +153,39 @@ export abstract class Emitter<TEvent> implements Observable<TEvent> {
     }
 }
 
-abstract class ObserverEmitter<TEvent> extends Emitter<TEvent> {
+/**
+ * An emitter implementation consisting of a set of observers.
+ *
+ * @internal
+ * @category Internals
+ */
+export abstract class ObserverEmitter<TEvent> extends Emitter<TEvent> {
     private observers = new Set<Observer<TEvent>>;
 
+    /**
+     * Called before the first observer is attached.
+     */
     protected init(): void {
     }
 
+    /**
+     * Called after all observers have been detached.
+     */
     protected destroy(): void {
     }
 
+    /**
+     * Emit an event to observers.
+     *
+     * @param event - The event to emit.
+     */
     protected emitEvent(event: TEvent) {
         this.observers.forEach(observer => observer(event));
     }
 
+    /**
+     * @returns True if this emitter has any observers, false otherwise.
+     */
     protected get observed(): boolean {
         return !!this.observers.size;
     }
@@ -236,6 +268,7 @@ class IndexingEmitter<TIn, TOut> extends ObserverEmitter<TOut> {
 
 /**
  * A mutable emitter.
+ * @category Emitters
  */
 export class MutEmitter<TEvent> extends ObserverEmitter<TEvent> {
     /**
@@ -260,10 +293,15 @@ export class MutEmitter<TEvent> extends ObserverEmitter<TEvent> {
 /**
  * An emitter that repeatedly emits events with a fixed time delay between
  * each event
+ * @category Emitters
  */
 export class IntervalEmitter extends ObserverEmitter<void> {
     private interval?: number;
 
+    /**
+     * @param ms - Delay in milliseconds.
+     * @param started - Whether the interval starts immediately.
+     */
     constructor(
         private ms: number,
         private started = true,
@@ -316,9 +354,16 @@ export class IntervalEmitter extends ObserverEmitter<void> {
     }
 }
 
+/**
+ * An emitter that fires a single event after a fixed time delay.
+ * @category Emitters
+ */
 export class TimeoutEmitter extends ObserverEmitter<void> {
     private timeout?: number;
 
+    /**
+     * @param ms - Delay in milliseconds.
+     */
     constructor(
         private ms: number,
     ) {
@@ -348,6 +393,9 @@ export class TimeoutEmitter extends ObserverEmitter<void> {
         this.clear();
     }
 
+    /**
+     * Reset the timeout.
+     */
     reset() {
         if (this.observed) {
             this.clear();

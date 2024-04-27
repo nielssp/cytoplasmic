@@ -6,13 +6,20 @@
 import { Cell, constant, zipWith } from "./cell";
 import { Observable } from './emitter';
 
+/**
+ * @category I18n
+ */
 export type ParameterValue = string | number | Cell<string> | Cell<number>;
 
+/**
+ * @category I18n
+ */
 export type TranslationParameters = Partial<Record<string, string | number>>;
 
 /**
  * Translation provider interface. Implement this to provide translations for
  * {@link _} and {@link _n}.
+ * @category I18n
  */
 export interface TranslationProvider {
     /**
@@ -54,6 +61,7 @@ export interface TranslationProvider {
  *
  * This class can be extended to implement a simple translation provider with
  * the above mentioned features. Simply override the {@link getMessage} method.
+ * @category I18n
  */
 export class DummyTranslationProvider implements TranslationProvider {
     readonly onLanguageChange: Observable<void> = constant(undefined);
@@ -106,6 +114,7 @@ let globalLanguageChangeCell: Cell<void> = constant(undefined);
  *
  * @param provider - The translation provider object.
  * @returns The previous translation provider.
+ * @category I18n
  */
 export function registerTranslationProvider(provider: TranslationProvider): TranslationProvider {
     const previous = globalTranslationProvider;
@@ -126,6 +135,7 @@ export function registerTranslationProvider(provider: TranslationProvider): Tran
  * @returns A cell containing the translated string. The cell updates if
  * any cell parameters change or a language change event is emitted by the
  * translation provider.
+ * @category I18n
  */
 export function _(msgid: string, parameters: Record<string, ParameterValue> = {}): Cell <string> {
     const sources = Object.values(parameters).filter(source => source instanceof Cell) as Cell<any>[];
@@ -161,6 +171,7 @@ export function _(msgid: string, parameters: Record<string, ParameterValue> = {}
  * @returns A cell containing the translated string. The cell updates if
  * any cell parameters change or a language change event is emitted by the
  * translation provider.
+ * @category I18n
  */
 export function _n(
     msgid: string,

@@ -3,6 +3,9 @@ import { Context, createValue } from "./context";
 import { ref } from "./cell";
 import { ElementChildren } from './types';
 
+/**
+ * @category Routing
+ */
 export type RouterConfig = {
     [key: Exclude<string, '*' | '**'>]: RouterConfig | (() => JSX.Element | Promise<JSX.Element>);
 } | {
@@ -11,8 +14,14 @@ export type RouterConfig = {
     '**': (arg: string) => JSX.Element | Promise<JSX.Element>;
 };
 
+/**
+ * @category Routing
+ */
 export type Path = string|string[];
 
+/**
+ * @category Routing
+ */
 export interface Router {
     resolve(path: Path): Promise<JSX.Element | undefined>;
     navigate(path: Path): Promise<void>;
@@ -170,10 +179,16 @@ class HashRouter implements Router {
     };
 }
 
+/**
+ * @category Routing
+ */
 export function createRouter(config: RouterConfig): Router {
     return new HashRouter(config);
 }
 
+/**
+ * @category Routing
+ */
 export function pathToString(path: Path): string {
     if (typeof path === 'string') {
         return path.split('/').filter(s => s).join('/');
@@ -181,8 +196,14 @@ export function pathToString(path: Path): string {
     return path.join('/');
 }
 
+/**
+ * @category Routing
+ */
 export const ActiveRouter = createValue<Router|undefined>(undefined);
 
+/**
+ * @category Routing
+ */
 export function Link(props: {
     path: Path,
     children: ElementChildren,

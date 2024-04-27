@@ -8,8 +8,14 @@ import { Cell, cell } from './cell';
 import { apply } from './component';
 import { Context } from './context';
 
+/**
+ * @category Cell streams and arrays
+ */
 export type ForEachInput = Cell<unknown[]> | CellIterable<unknown, unknown> | unknown[];
 
+/**
+ * @category Cell streams and arrays
+ */
 export type ForEachBody<TIterable extends ForEachInput> =
     TIterable extends Cell<(infer TItem)[]>
     ? (value: Cell<TItem>, index: number) => JSX.Element
@@ -19,6 +25,9 @@ export type ForEachBody<TIterable extends ForEachInput> =
     ? (value: TItem, index: number) => JSX.Element
     : never;
 
+/**
+ * @category Cell streams and arrays
+ */
 export function For<TIterable extends ForEachInput>({each, children}: {
     each:  TIterable,
     children: ForEachBody<TIterable>

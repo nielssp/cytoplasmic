@@ -8,6 +8,9 @@ import { ElementChildren } from './types';
 
 let nextContextId = 1;
 
+/**
+ * @category Context
+ */
 export class Context {
     private initialized = false;
     private destroyed = false;
@@ -68,6 +71,9 @@ export class Context {
     }
 }
 
+/**
+ * @category Context
+ */
 export interface ContextValue<T> {
     id: number;
     defaultValue: T;
@@ -75,6 +81,9 @@ export interface ContextValue<T> {
     Consumer: (props: {children: (value: T) => ElementChildren}) => JSX.Element;
 }
 
+/**
+ * @category Context
+ */
 export function createValue<T>(defaultValue: T): ContextValue<T> {
     const id = nextContextId++;
     const Provider = ({value, children}: {value: T, children: ElementChildren}) => {
