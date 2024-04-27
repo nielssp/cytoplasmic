@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "cytoplasmic": "^0.6.0"
+    "cytoplasmic": "^0.7.0"
   },
   "devDependencies": {
     "typescript": "^5.2.2",

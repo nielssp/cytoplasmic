@@ -1,6 +1,6 @@
 # Cytoplasmic changelog
 
-## Unreleased
+## Cytoplasmic 0.7.0
 
 New features:
 
@@ -11,6 +11,7 @@ New features:
 - `Emitter.from(observable)`
 - `Cell.from(observable, initialValue)`
 - `registerTranslationProvider(provider)`
+- `$(() => $(a) + $(b))` for computed cells
 
 New components:
 
