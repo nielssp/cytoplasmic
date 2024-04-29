@@ -142,7 +142,7 @@ export abstract class Emitter<TEvent> implements Observable<TEvent> {
 
     /**
      * Create an emitter from another observable (cell or emitter). The
-     * resulting emitter emits an even whenever the input observable emits and
+     * resulting emitter emits an even whenever the input observable emits an
      * event.
      *
      * @param observable - The observable to wrap.

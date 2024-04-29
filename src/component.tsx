@@ -508,6 +508,22 @@ export function Switch<
 }
 
 /**
+ * Dereference a nullable cell.
+ *
+ * @example
+ * ```tsx
+ * const num = ref<number>();
+ *
+ * <Deref ref={num}>{ num =>
+ *     {num.map(n => n + 5)} is ten
+ * }</Deref>
+ * ```
+ *
+ * @param props.children - A function that accepts the non-nullable value and
+ * returns an element.
+ * @param props.ref - The cell to dereference.
+ * @param props.else - Optional element to render if the cell value is null or
+ * undefined.
  * @category Components
  */
 export function Deref<T>(props: {
@@ -577,6 +593,24 @@ export function Deref<T>(props: {
 }
 
 /**
+ * Unwrap a cell. The DOM is rebuilt whenever the input cell changes. If the
+ * cell value is null or undefined the `else`-branch will be rendered instead
+ * (similar to {@link Deref}).
+ *
+ * @example
+ * ```tsx
+ * const num = bind(5);
+ *
+ * <Unwrap from={num}>{ num =>
+ *     {num + 5} is ten
+ * }</Unwrap>
+ * ```
+ *
+ * @param props.children - A function that accepts the unwrapped value and
+ * returns an element
+ * @param props.from - The cell to unwrap.
+ * @param props.else - Optional element to render if the cell value is null or
+ * undefined.
  * @category Components
  */
 export function Unwrap<T>(props: {

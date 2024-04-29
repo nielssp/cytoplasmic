@@ -7,30 +7,78 @@ import { CellIterable } from './array';
 import { Cell, cell } from './cell';
 import { apply } from './component';
 import { Context } from './context';
+import { ElementChildren } from './types';
 
 /**
- * @category Cell streams and arrays
+ * Iterate over an array of items and render an element for each. When the cell
+ * updates the existing DOM-elements will be reused, but an update will be
+ * emitted for each item in the array.
+ *
+ * @example
+ * ```tsx
+ * const a = cell([1, 2, 3]);
+ * <For each={a}>{(item, index) => {
+ *     <li>Item {item} and index {index}</li>
+ * }</For>
+ * ```
+ *
+ * @param props.each - A cell containing an array of items to iterate over.
+ * @param props.children - A function that accepts an item cell and returns an
+ * element.
+ * @category Components
  */
-export type ForEachInput = Cell<unknown[]> | CellIterable<unknown, unknown> | unknown[];
-
+export function For<TItem>(props: {
+    each:  Cell<TItem[]>,
+    children: (value: Cell<TItem>, index: number) => ElementChildren,
+}, context: Context): JSX.Element;
 /**
- * @category Cell streams and arrays
+ * Iterate over a static array of items and render an element for each.
+ *
+ * @example
+ * ```tsx
+ * const a = [1, 2, 3];
+ * <For each={a}>{(item, index) => {
+ *     <li>Item {item} and index {index}</li>
+ * }</For>
+ * ```
+ *
+ * @param props.each - An array of items to iterate over.
+ * @param props.children - A function that accepts an item and returns an
+ * element.
  */
-export type ForEachBody<TIterable extends ForEachInput> =
-    TIterable extends Cell<(infer TItem)[]>
-    ? (value: Cell<TItem>, index: number) => JSX.Element
-    : TIterable extends CellIterable<infer TItem, infer TKey>
-    ? (value: TItem, key: TKey) => JSX.Element
-    : TIterable extends (infer TItem)[]
-    ? (value: TItem, index: number) => JSX.Element
-    : never;
-
+export function For<TItem>(props: {
+    each:  TItem[],
+    children: (value: TItem, index: number) => ElementChildren,
+}, context: Context): JSX.Element;
 /**
- * @category Cell streams and arrays
+ * Iterate over a {@link CellIterable} of items and keys. See {@link cellArray}
+ * for information on creating dynamic cell arrays.
+ *
+ * @example
+ * ```tsx
+ * const a = cellArray([1, 2, 3]);
+ * <For each={a.indexed}>{(item, index) => {
+ *     <li>Item {item} at index {index}</li>
+ * }</For>
+ * ```
+ *
+ * @param props.each - An iterable to itearate over.
+ * @param props.children - A function that accepts an item cell and returns an
+ * element.
  */
-export function For<TIterable extends ForEachInput>({each, children}: {
-    each:  TIterable,
-    children: ForEachBody<TIterable>
+export function For<TItem, TKey>(props: {
+    each:  CellIterable<TItem, TKey>,
+    children: (value: TItem, key: TKey) => ElementChildren,
+}, context: Context): JSX.Element;
+export function For<TItem, TKey>({each, children}: {
+    each:  Cell<TItem[]>,
+    children: (value: Cell<TItem>, index: number) => ElementChildren,
+} | {
+    each:  TItem[],
+    children: (value: TItem, index: number) => ElementChildren,
+} | {
+    each:  CellIterable<TItem, TKey>,
+    children: (value: TItem, key: TKey) => ElementChildren,
 }, context: Context): JSX.Element {
     const marker = document.createComment('<For>');
     let items: [Node[], Context][] = [];
