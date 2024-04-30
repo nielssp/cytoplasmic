@@ -53,6 +53,8 @@ export class Context {
     provide<T>(property: ContextValue<T>, value: T): Context {
         const subcontext = new Context(this);
         subcontext.values[property.id] = value;
+        this.onInit(() => subcontext.init());
+        this.onDestroy(() => subcontext.destroy());
         return subcontext;
     }
 

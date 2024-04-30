@@ -28,13 +28,13 @@ describe('HashRouter', () => {
             '**': () => routes.notFound,
         });
 
-        expect(await router.resolve('')).toBe(routes.root);
-        expect(await router.resolve('foo')).toBe(routes.foo);
-        expect(await router.resolve('bar')).toBe(routes.bar);
-        expect(await router.resolve('bar/xyz')).toBe(routes.barX);
-        expect(await router.resolve('bar/xyz/baz')).toBe(routes.barXBaz);
-        expect(await router.resolve('bar/xyz/bar')).toBe(routes.notFound);
-        expect(await router.resolve('baz')).toBe(routes.notFound);
+        expect(await router.resolve('').element).toBe(routes.root);
+        expect(await router.resolve('foo').element).toBe(routes.foo);
+        expect(await router.resolve('bar').element).toBe(routes.bar);
+        expect(await router.resolve('bar/xyz').element).toBe(routes.barX);
+        expect(await router.resolve('bar/xyz/baz').element).toBe(routes.barXBaz);
+        expect(await router.resolve('bar/xyz/bar').element).toBe(routes.notFound);
+        expect(await router.resolve('baz').element).toBe(routes.notFound);
     });
 
     test('navigate', async () => {
@@ -52,6 +52,12 @@ describe('HashRouter', () => {
 
         await router.navigate('bar/baz/2');
         expect(window.location.hash).toBe('#bar/baz/2');
+
+        await router.navigate('../../bazbar');
+        expect(window.location.hash).toBe('#bar/bazbar');
+
+        await router.navigate('./3');
+        expect(window.location.hash).toBe('#bar/bazbar/3');
     });
 
     test('Portal', async () => {

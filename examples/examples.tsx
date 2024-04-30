@@ -108,10 +108,10 @@ function RoutingUsers() {
     return <div>
         <h3>Users</h3>
         <div>
-            <Link path='users/1'><a>User 1</a></Link>
+            <Link path='./1'><a>User 1</a></Link>
         </div>
         <div>
-            <Link path='users/2'><a>User 2</a></Link>
+            <Link path='/users/2'><a>User 2</a></Link>
         </div>
     </div>;
 }
@@ -120,6 +120,8 @@ function RoutingUser({userId}: {userId: string}) {
     return <div>
         <h3>User {userId}</h3>
         <p>Details for user {userId}</p>
+        <p><Link path='./subroutes'><a>Subroutes</a></Link></p>
+        <p><Link path='..'><a>Back</a></Link></p>
     </div>;
 }
 
@@ -135,16 +137,57 @@ async function loadLazyRoute() {
     return <m.LazyRoute/>;
 }
 
+function SubroutingMain() {
+    return <div>
+        <h3>Main</h3>
+    </div>;
+}
+
+function SubroutingSubpage() {
+    return <div>
+        <h3>Page</h3>
+    </div>;
+}
+
+function SubroutingNotFound() {
+    return <div>
+        <h3>Subpage not found</h3>
+    </div>;
+}
+
+function SubroutingExample() {
+    const router = createRouter({
+        '': () => <SubroutingMain/>,
+        'page': () => <SubroutingSubpage/>,
+        '**': () => <SubroutingNotFound/>,
+    }, 'path');
+    return <div>
+        <h3>Subrouting</h3>
+        <router.Provider>
+            <div class='stack-row spacing'>
+                <Link path=''><a>Main</a></Link>
+                <Link path='page'><a>page</a></Link>
+            </div>
+        </router.Provider>
+        <router.Portal/>
+    </div>
+}
+
 function RoutingExample() {
     const router = createRouter({
         '': () => <RoutingDashboard/>,
         'users': {
             '': () => <RoutingUsers/>,
-            '*': userId => <RoutingUser userId={userId}/>,
+            '*': userId => ({
+                '': () => <RoutingUser userId={userId}/>,
+                'subroutes': {
+                    '**': () => <SubroutingExample/>,
+                },
+            }),
         },
         'lazy': () => loadLazyRoute(),
         '**': () => <RoutingNotFound/>,
-    });
+    }, 'path');
     return <div class='stack-column spacing'>
         <router.Provider>
             <RoutingNav/>

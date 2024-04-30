@@ -2,8 +2,8 @@
  * @jsx createElement
  * @jest-environment jsdom
  */
-import { Context, createValue, createElement } from '../src';
-import { mountTest } from './test-util';
+import { Context, createValue, createElement, cell } from '../src';
+import { mountTest, numObservers } from './test-util';
 
 describe('Context', () => {
     it('runs initializers on initialization', () => {
@@ -79,9 +79,11 @@ describe('createValue', () => {
     test('Provider', () => {
         const value = createValue(10);
 
+        const a = cell('a');
+
         const element = mountTest(
             <value.Provider value={20}>
-                a
+                {a}
                 <value.Consumer>{v => {
                     expect(v).toBe(20);
                     return 'b';
@@ -91,17 +93,33 @@ describe('createValue', () => {
         );
 
         expect(element.container.textContent).toBe('abc');
+
+        a.value = 'b';
+        expect(element.container.textContent).toBe('bbc');
+
+        element.destroy();
+
+        expect(numObservers(a)).toBe(0);
     });
     test('Consumer', () => {
         const value = createValue(10);
 
+        const a = cell('foo');
+
         const element = mountTest(
             <value.Consumer>{v => {
                 expect(v).toBe(10);
-                return 'test';
+                return <span>{v}{a}</span>;
             }}</value.Consumer>
         );
 
-        expect(element.container.textContent).toBe('test');
+        expect(element.container.textContent).toBe('10foo');
+
+        a.value = 'bar';
+        expect(element.container.textContent).toBe('10bar');
+
+        element.destroy();
+
+        expect(numObservers(a)).toBe(0);
     });
 });

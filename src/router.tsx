@@ -1,7 +1,8 @@
 import { apply, createElement } from "./component";
 import { Context, createValue } from "./context";
-import { ref } from "./cell";
+import { Cell, Input, RefCell, cell, input, ref } from "./cell";
 import { ElementChildren } from './types';
+import { Emitter, createEmitter } from './emitter';
 
 /**
  * @category Routing
@@ -11,48 +12,113 @@ export type RouterConfig = {
 } | {
     '*': (arg: string) => RouterConfig | JSX.Element | Promise<JSX.Element>;
 } | {
-    '**': (arg: string) => JSX.Element | Promise<JSX.Element>;
+    '**': (arg: string[]) => JSX.Element | Promise<JSX.Element>;
 };
 
 /**
  * @category Routing
  */
-export type Path = string|string[];
+export type Path = string | string[];
+
+/**
+ * @category Routing
+ */
+export interface ActiveRoute {
+    path: string[];
+    route: string[];
+    element: Promise<JSX.Element | undefined>;
+}
 
 /**
  * @category Routing
  */
 export interface Router {
-    resolve(path: Path): Promise<JSX.Element | undefined>;
-    navigate(path: Path): Promise<void>;
+    strategy: RouterStategy;
+    activeRoute: RefCell<ActiveRoute>;
+    onNavigate: Emitter<ActiveRoute>;
+    onNavigated: Emitter<ActiveRoute>;
+    resolve(path: Path): ActiveRoute;
+    navigate(path: Path, skipHistory?: boolean): Promise<void>;
     Portal({}: {}): JSX.Element;
     Provider({children}: {children: ElementChildren}): JSX.Element;
     Link(props: {
-        path: Path,
+        path: Input<Path>,
         children: ElementChildren,
     }): JSX.Element;
 }
 
-class HashRouter implements Router {
-    private readonly currentElement = ref<JSX.Element>();
+export type RouterStategy = 'hash' | 'path';
 
-    constructor(private config: RouterConfig) {
+class RouterImpl implements Router {
+    private readonly currentElement = ref<JSX.Element>();
+    private readonly _activeRoute = ref<ActiveRoute>();
+    private readonly _onNavigate = createEmitter<ActiveRoute>();
+    private readonly _onNavigated = createEmitter<ActiveRoute>();
+
+    constructor(protected readonly config: RouterConfig, private readonly _strategy: RouterStategy) {
     }
 
-    async resolve(path: Path): Promise<JSX.Element | undefined> {
+    get strategy(): RouterStategy {
+        return this._strategy;
+    }
+
+    get activeRoute(): RefCell<ActiveRoute> {
+        return this._activeRoute.asCell();
+    }
+
+    get onNavigate(): Emitter<ActiveRoute> {
+        return this._onNavigate.asEmitter();
+    }
+
+    get onNavigated(): Emitter<ActiveRoute> {
+        return this._onNavigated.asEmitter();
+    }
+
+    protected toAbsolute(path: Path): string[] {
+        let pathArray: string[];
         if (typeof path === 'string') {
-            path = path.split('/').filter(s => s);
+            pathArray = path.split('/').filter(s => s);
+        } else {
+            pathArray = [...path];
         }
-        path.push('');
+        if (pathArray.length && pathArray[0].startsWith('.')) {
+            const current = [...this._activeRoute.value?.path ?? []];
+            if (pathArray[0] === '.') {
+                pathArray.shift();
+                current.push(...pathArray);
+            } else {
+                while (pathArray[0] === '..') {
+                    if (current.length) {
+                        pathArray.shift();
+                        current.pop();
+                    } else {
+                        console.error('Invalid relative path:', pathArray, 'current path:', this._activeRoute.value?.path);
+                        return [];
+                    }
+                }
+                current.push(...pathArray);
+            }
+            pathArray = current;
+        }
+        return pathArray;
+    }
+
+    resolve(path: Path): ActiveRoute {
+        const absolute = this.toAbsolute(path);
+        absolute.push('');
         let route = this.config;
         let element: JSX.Element | Promise<JSX.Element> | undefined;
         let catchAll: JSX.Element | Promise<JSX.Element> | undefined;
-        for (let i = 0; i < path.length; i++) {
-            const p: string = path[i];
+        let catchAllPath: string[] = [];
+        let routePath: string[] = [];
+        for (let i = 0; i < absolute.length; i++) {
+            const p: string = absolute[i];
             if ('**' in route) {
-                catchAll = (route as any)['**'](path.slice(i));
+                catchAll = (route as any)['**'](absolute.slice(i));
+                catchAllPath = [...routePath, '**'];
             }
             if (p in route) {
+                routePath.push(p);
                 const r: RouterConfig | (() => JSX.Element | Promise<JSX.Element>) = (route as any)[p]
                 if (typeof r === 'function') {
                     element = r();
@@ -61,9 +127,10 @@ class HashRouter implements Router {
                     route = r;
                 }
             } else if ('*' in route) {
+                routePath.push('*');
                 const r: RouterConfig | JSX.Element | Promise<JSX.Element> = (route as any)['*'](p);
                 if (typeof r === 'function' || r instanceof Promise) {
-                    if (i === path.length - 2) {
+                    if (i === absolute.length - 2) {
                         element = r;
                     }
                     break;
@@ -76,23 +143,47 @@ class HashRouter implements Router {
         }
         if (!element) {
             element = catchAll;
+            routePath = catchAllPath;
         }
-        return element;
+        absolute.pop();
+        return {
+            path: absolute,
+            route: routePath,
+            element: element instanceof Promise ? element : Promise.resolve(element),
+        };
     }
 
-    async navigate(path: Path): Promise<void> {
-        this.currentElement.value = await this.resolve(path);
+    private pathToString(path: Path): string {
+        if (typeof path === 'string') {
+            path = this.toAbsolute(path);
+        }
+        const pathString = pathToString(path);
+        if (this.strategy === 'hash') {
+            return `#${pathString}`;
+        } else {
+            return `/${pathString}`;
+        }
+    }
+
+    async navigate(path: Path, skipHistory: boolean = false): Promise<void> {
+        const route = this.resolve(path);
+        if (!skipHistory) {
+            window.history.pushState({
+                path: route.path,
+            }, document.title, this.pathToString(route.path));
+        }
+        this._activeRoute.value = route;
+        this._onNavigate.emit(route);
+        this.currentElement.value = await route.element;
+        this._onNavigated.emit(route);
         if (!this.currentElement.value) {
             throw new Error(`Route not found for path: ${path}`);
         }
-        const pathString = pathToString(path);
-        window.history.pushState({
-            path
-        }, document.title, `#${pathString}`);
     }
 
     readonly Portal = ({}: {}): JSX.Element => {
         return context => {
+            const parentRouter = context.use(ActiveRouter);
             const marker = document.createComment('<Router.Portal>');
             const childNodes: Node[] = [];
             let subcontext: Context|undefined;
@@ -106,7 +197,7 @@ class HashRouter implements Router {
                     return;
                 }
                 const parent = marker.parentElement;
-                subcontext = context.provide(ActiveRouter, this);
+                subcontext = context.provide(ActiveRouter, parentRouter ?? this);
                 apply(element, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
@@ -116,31 +207,52 @@ class HashRouter implements Router {
 
             const onPopState = async (event: PopStateEvent) => {
                 if (event.state?.path) {
-                    this.currentElement.value = await this.resolve(event.state.path);
+                    await this.navigate(event.state.path, true);
                 }
             };
 
             const onHashChange = async () => {
                 if (location.hash) {
-                    this.currentElement.value = await this.resolve(location.hash.replace(/^#/, ''));
+                    await this.navigate(location.hash.replace(/^#/, ''), true);
                 } else {
-                    this.currentElement.value = await this.resolve('');
+                    await this.navigate('', true);
                 }
             };
 
-            context.onInit(() => {
+            const onParentNavigate = (route: ActiveRoute | undefined) => {
+                if (route) {
+                    const path = route.path.slice(route.route.length - 1);
+                    this.navigate(path, true);
+                }
+            };
+
+            context.onInit(async () => {
                 this.currentElement.value = undefined;
                 this.currentElement.getAndObserve(observer);
-                window.addEventListener('popstate', onPopState);
-                window.addEventListener('hashchange', onHashChange);
-                onHashChange();
+                if (parentRouter) {
+                    parentRouter.activeRoute.getAndObserve(onParentNavigate);
+                } else {
+                    window.addEventListener('popstate', onPopState);
+                    if (this.strategy === 'hash') {
+                        window.addEventListener('hashchange', onHashChange);
+                        onHashChange();
+                    } else {
+                        await this.navigate(location.pathname, true);
+                    }
+                }
             });
             context.onDestroy(() => {
                 childNodes.forEach(node => node.parentElement?.removeChild(node));
                 childNodes.splice(0);
                 this.currentElement.unobserve(observer);
-                window.removeEventListener('popstate', onPopState);
-                window.removeEventListener('hashchange', onHashChange);
+                if (parentRouter) {
+                    parentRouter.activeRoute.unobserve(onParentNavigate);
+                } else {
+                    window.removeEventListener('popstate', onPopState);
+                    if (this.strategy === 'hash') {
+                        window.removeEventListener('hashchange', onHashChange);
+                    }
+                }
                 subcontext?.destroy();
             });
             return marker;
@@ -154,18 +266,21 @@ class HashRouter implements Router {
     };
 
     Link = (props: {
-        path: Path,
+        path: Input<Path>,
         children: ElementChildren,
     }): JSX.Element => {
+        const path = input(props.path);
         const onClick = (event: MouseEvent) => {
             event.preventDefault();
-            this.navigate(props.path);
+            this.navigate(path.value);
         };
         return context => {
             const children = apply(props.children, context);
             children.forEach(child => {
                 if (child instanceof HTMLAnchorElement) {
-                    child.href = '#' + pathToString(props.path);
+                    context.onDestroy(path.getAndObserve(path => {
+                        child.href = this.pathToString(path);
+                    }));
                     context.onInit(() => {
                         child.addEventListener('click', onClick);
                     });
@@ -182,8 +297,8 @@ class HashRouter implements Router {
 /**
  * @category Routing
  */
-export function createRouter(config: RouterConfig): Router {
-    return new HashRouter(config);
+export function createRouter(config: RouterConfig, strategy: RouterStategy = 'hash'): Router {
+    return new RouterImpl(config, strategy);
 }
 
 /**
@@ -205,7 +320,7 @@ export const ActiveRouter = createValue<Router|undefined>(undefined);
  * @category Routing
  */
 export function Link(props: {
-    path: Path,
+    path: Input<Path>,
     children: ElementChildren,
 }, context: Context) {
     const router = context.use(ActiveRouter);

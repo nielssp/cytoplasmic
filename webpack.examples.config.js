@@ -41,7 +41,10 @@ module.exports = {
   devServer: {
     static: './dist',
     compress: true,
-    port: 9000
+    port: 9000,
+    historyApiFallback: {
+      index: '/index.html'
+    }
   },
   plugins: [
       new HtmlWebpackPlugin({template: './examples/index.html'})
