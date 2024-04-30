@@ -663,6 +663,17 @@ export function Unwrap<T>(props: {
 }
 
 /**
+ * Use this component for lazy importing other components.
+ *
+ * @example
+ * ```tsx
+ * <Lazy else='loading...'>{() => import('./my-component').then(m => <m.MyComponent/>)}</Lazy>
+ * ```
+ *
+ * @param props.children - Async function for that resolves to an element.
+ * @param props.else - Element to show until the promise resolves.
+ * @param props.onError - Error handler which is executed if the promise is
+ * rejected.
  * @category Components
  */
 export function Lazy(props: {
@@ -715,6 +726,23 @@ export function Lazy(props: {
 }
 
 /**
+ * Dynamically replace elements based on the value of a cell.
+ *
+ * @example
+ * ```tsx
+ * function MyComponent(props: {
+ *   foo: number,
+ * }) {
+ *   return <div>{props.foo}</div>;
+ * }
+ *
+ * const comp = cell(MyComponent);
+ *
+ * <Dynamic component={comp} foo={5}/>
+ * ```
+ *
+ * @param props.component Component to render.
+ * @param props.else Element to render when `props.component` is undefined.
  * @category Components
  */
 export function Dynamic<T>(props: T & {
@@ -764,6 +792,17 @@ export function Dynamic<T>(props: T & {
 }
 
 /**
+ * Apply style properties to one or more child elements.
+ *
+ * @example
+ * ```tsx
+ * <Style backgroundColor='blue' color='green'>
+ *   <div>test</div>
+ * </Style>
+ * ```
+ *
+ * @param props.children - The elements to apply styling to.
+ * @param props - CSS style properties.
  * @category Components
  */
 export function Style(props: {
@@ -812,13 +851,35 @@ export function mount(container: HTMLElement, ... elements: JSX.Element[]): () =
 }
 
 /**
+ * JSX fragment factory.
+ *
+ * @example
+ * ```tsx
+ * <>
+ *   <span>first</span>
+ *   <span>second</span>
+ * </>
+ * ```
+ *
+ * @param props.children - Child elements.
  * @category Components
  */
-export function Fragment({children}: {children: ElementChildren}): JSX.Element {
-    return flatten(children);
+export function Fragment(props: {children: ElementChildren}): JSX.Element {
+    return flatten(props.children);
 }
 
 /**
+ * Attach an observer to the lifecycle of the current {@link Context}. The
+ * observer will be detached when the context is destroyed.
+ *
+ * @example
+ * ```tsx
+ * <Observe from={emitter} then={event => doSomething(event)}/>
+ * ```
+ *
+ * @param props
+ * @param props.from - An observable (e.g. a {@link Cell} or an {@link Emitter}).
+ * @param props.then - The event handler.
  * @category Components
  */
 export function Observe<TEvent>({from, then}: {
@@ -833,6 +894,19 @@ export function Observe<TEvent>({from, then}: {
 }
 
 /**
+ * Attach a window listener to the lifecycle of the current {@link Context}. The
+ * event listener will be removed when the context is destroyed.
+ *
+ * @example
+ * ```tsx
+ * <WindowListener on='resize' then={e => handleWindowResizeEvent(e)}/>
+ * ```
+ *
+ * @param props
+ * @param props.on - Event name.
+ * @param props.then - Event handler.
+ * @param props.capture - Whether to use event capturing.
+ * @param props.options - Additional event listener options.
  * @category Components
  */
 export function WindowListener<TKey extends keyof WindowEventMap>({on, then, capture, options}: {
@@ -849,6 +923,19 @@ export function WindowListener<TKey extends keyof WindowEventMap>({on, then, cap
 }
 
 /**
+ * Attach a document listener to the lifecycle of the current {@link Context}. The
+ * event listener will be removed when the context is destroyed.
+ *
+ * @example
+ * ```tsx
+ * <DocumentListener on='keydown' then={e => handleKeydownEvent(e)}/>
+ * ```
+ *
+ * @param props
+ * @param props.on - Event name.
+ * @param props.then - Event handler.
+ * @param props.capture - Whether to use event capturing.
+ * @param props.options - Additional event listener options.
  * @category Components
  */
 export function DocumentListener<TKey extends keyof DocumentEventMap>({on, then, capture, options}: {

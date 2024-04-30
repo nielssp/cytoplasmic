@@ -24,11 +24,28 @@ describe('For', () => {
         expect(numObservers(a)).toBe(0);
     });
 
+    it('shows else branch for empty static arrays', () => {
+        const a = cell(10);
+        const element = mountTest(
+            <For each={[]} else={<div>empty {a}</div>}>{(item, index) =>
+                <div>{index}: {item} ({a})</div>
+            }</For>
+        );
+        expect(element.container.textContent).toBe('empty 10');
+
+        a.value = 5;
+        expect(element.container.textContent).toBe('empty 5');
+
+        element.destroy();
+        expect(element.container.textContent).toBe('');
+        expect(numObservers(a)).toBe(0);
+    });
+
     it('traverses array cells', () => {
         const items = cell(['foo', 'bar', 'baz']);
         const a = cell(10);
         const element = mountTest(
-            <For each={items}>{(item, index) =>
+            <For each={items} else={<div>empty {a}</div>}>{(item, index) =>
                 <div>{index}: {item} ({a})</div>
             }</For>
         );
@@ -52,6 +69,18 @@ describe('For', () => {
         items.update(x => x.unshift('baz'));
         expect(element.container.textContent).toBe('0: baz (5)1: bar (5)2: foo (5)');
 
+        items.update(x => x.splice(0));
+        expect(element.container.textContent).toBe('empty 5');
+
+        a.value = 10;
+        expect(element.container.textContent).toBe('empty 10');
+
+        items.update(x => x.push('baz'));
+        expect(element.container.textContent).toBe('0: baz (10)');
+
+        items.update(x => x.splice(0));
+        expect(element.container.textContent).toBe('empty 10');
+
         element.destroy();
 
         items.update(x => x.push('foo'));
@@ -66,7 +95,7 @@ describe('For', () => {
         const indexed = items.indexed;
         const a = cell(10);
         const element = mountTest(
-            <For each={indexed}>{(item, index) =>
+            <For each={indexed} else={<div>empty {a}</div>}>{(item, index) =>
                 <div>{index}: {item} ({a})</div>
             }</For>
         );
@@ -89,6 +118,15 @@ describe('For', () => {
 
         items.insert(0, 'baz');
         expect(element.container.textContent).toBe('0: baz (5)1: bar (5)2: foo (5)');
+
+        items.clear();
+        expect(element.container.textContent).toBe('empty 5');
+
+        a.value = 10;
+        expect(element.container.textContent).toBe('empty 10');
+
+        items.push('foo');
+        expect(element.container.textContent).toBe('0: foo (10)');
 
         element.destroy();
 

@@ -4,7 +4,7 @@
 // http://opensource.org/licenses/MIT for more information.
 
 import { CellIterable } from './array';
-import { Cell, cell } from './cell';
+import { Cell, MutCell, cell } from './cell';
 import { apply } from './component';
 import { Context } from './context';
 import { ElementChildren } from './types';
@@ -25,11 +25,13 @@ import { ElementChildren } from './types';
  * @param props.each - A cell containing an array of items to iterate over.
  * @param props.children - A function that accepts an item cell and returns an
  * element.
+ * @param props.else - Alternative to show when array is empty.
  * @category Components
  */
 export function For<TItem>(props: {
     each:  Cell<TItem[]>,
     children: (value: Cell<TItem>, index: number) => ElementChildren,
+    else?: ElementChildren,
 }, context: Context): JSX.Element;
 /**
  * Iterate over a static array of items and render an element for each.
@@ -45,10 +47,12 @@ export function For<TItem>(props: {
  * @param props.each - An array of items to iterate over.
  * @param props.children - A function that accepts an item and returns an
  * element.
+ * @param props.else - Alternative to show when array is empty.
  */
 export function For<TItem>(props: {
     each:  TItem[],
     children: (value: TItem, index: number) => ElementChildren,
+    else?: ElementChildren,
 }, context: Context): JSX.Element;
 /**
  * Iterate over a {@link CellIterable} of items and keys. See {@link cellArray}
@@ -65,41 +69,39 @@ export function For<TItem>(props: {
  * @param props.each - An iterable to itearate over.
  * @param props.children - A function that accepts an item cell and returns an
  * element.
+ * @param props.else - Alternative to show when array is empty.
  */
 export function For<TItem, TKey>(props: {
     each:  CellIterable<TItem, TKey>,
     children: (value: TItem, key: TKey) => ElementChildren,
+    else?: ElementChildren,
 }, context: Context): JSX.Element;
-export function For<TItem, TKey>({each, children}: {
-    each:  Cell<TItem[]>,
+export function For<TItem, TKey>({each, children, else: elseBranch}: {
+    each: Cell<TItem[]>,
     children: (value: Cell<TItem>, index: number) => ElementChildren,
+    else?: ElementChildren,
 } | {
-    each:  TItem[],
+    each: TItem[],
     children: (value: TItem, index: number) => ElementChildren,
+    else?: ElementChildren,
 } | {
-    each:  CellIterable<TItem, TKey>,
+    each: CellIterable<TItem, TKey>,
     children: (value: TItem, key: TKey) => ElementChildren,
+    else?: ElementChildren,
 }, context: Context): JSX.Element {
     const marker = document.createComment('<For>');
     let items: [Node[], Context][] = [];
+    let elseContext: [Node[], Context] | undefined;
     if (each instanceof Cell) {
         const body = children as (value: Cell<unknown>, index: number) => JSX.Element;
-        const cells = each.value.map(v => cell(v));
+        const cells: MutCell<unknown>[] = [];
         context.onInit(() => {
-            cells.forEach((item, index) => {
-                const nodes: Node[] = [];
-                const subcontext = new Context(context);
-                apply(body(item, index), subcontext).forEach(node => {
-                    if (!marker.parentElement) {
-                        return;
-                    }
-                    nodes.push(node);
-                    marker.parentElement.insertBefore(node, marker);
-                });
-                items.push([nodes, subcontext]);
-                subcontext.init();
-            });
-            context.onDestroy(each.observe(xs => {
+            context.onDestroy(each.getAndObserve(xs => {
+                if (xs.length && elseContext) {
+                    elseContext[0].forEach(node => node.parentElement?.removeChild(node));
+                    elseContext[1].destroy();
+                    elseContext = undefined;
+                }
                 if (xs.length < cells.length) {
                     cells.splice(xs.length);
                     items.splice(xs.length).forEach(([nodes, subcontext]) => {
@@ -134,14 +136,18 @@ export function For<TItem, TKey>({each, children}: {
                         cells[i].value = xs[i];
                     }
                 }
+                if (!items.length && elseBranch && marker.parentElement && !elseContext) {
+                    const parent = marker.parentElement;
+                    const subcontext = new Context(context);
+                    const childNodes: Node[] = [];
+                    apply(elseBranch, subcontext).forEach(node => {
+                        parent.insertBefore(node, marker);
+                        childNodes.push(node);
+                    });
+                    subcontext.init();
+                    elseContext = [childNodes, subcontext];
+                }
             }));
-            context.onDestroy(() => {
-                items.forEach(([nodes, subcontext]) => {
-                    nodes.forEach(node => node.parentElement?.removeChild(node));
-                    nodes.splice(0);
-                    subcontext.destroy();
-                });
-            });
         });
     } else if (Array.isArray(each)) {
         const body = children as (value: unknown, index: number) => JSX.Element;
@@ -156,12 +162,23 @@ export function For<TItem, TKey>({each, children}: {
                     marker.parentElement.insertBefore(node, marker);
                 });
             });
+            if (!each.length && elseBranch && marker.parentElement) {
+                const parent = marker.parentElement;
+                apply(elseBranch, context).forEach(node => {
+                    parent.insertBefore(node, marker);
+                });
+            }
         });
     } else {
         const body = children as (value: unknown, key: unknown) => JSX.Element;
         context.onInit(() => {
             context.onDestroy(each.observe(
                 (index, item, key) => {
+                    if (elseContext) {
+                        elseContext[0].forEach(node => node.parentElement?.removeChild(node));
+                        elseContext[1].destroy();
+                        elseContext = undefined;
+                    }
                     const subcontext = new Context(context);
                     if (index >= items.length) {
                         const nodes: Node[] = [];
@@ -199,16 +216,32 @@ export function For<TItem, TKey>({each, children}: {
                         nodes.splice(0);
                         subcontext.destroy();
                     });
+                    if (!items.length && elseBranch && marker.parentElement && !elseContext) {
+                        const parent = marker.parentElement;
+                        const subcontext = new Context(context);
+                        const childNodes: Node[] = [];
+                        apply(elseBranch, subcontext).forEach(node => {
+                            parent.insertBefore(node, marker);
+                            childNodes.push(node);
+                        });
+                        subcontext.init();
+                        elseContext = [childNodes, subcontext];
+                    }
                 },
             ));
-            context.onDestroy(() => {
-                items.forEach(([nodes, subcontext]) => {
-                    nodes.forEach(node => node.parentElement?.removeChild(node));
-                    nodes.splice(0);
-                    subcontext.destroy();
-                });
-            });
         });
     }
+    context.onDestroy(() => {
+        if (elseContext) {
+            elseContext[0].forEach(node => node.parentElement?.removeChild(node));
+            elseContext[1].destroy();
+            elseContext = undefined;
+        }
+        items.forEach(([nodes, subcontext]) => {
+            nodes.forEach(node => node.parentElement?.removeChild(node));
+            nodes.splice(0);
+            subcontext.destroy();
+        });
+    });
     return () => marker;
 }
