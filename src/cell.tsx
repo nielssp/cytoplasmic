@@ -41,7 +41,7 @@ export type CellObserver<T> = (newValue: T) => void;
  * @category Internals
  */
 export type CellProxyObject<T> = T extends {} ? {
-    [TKey in keyof T]-?: Cell<T[TKey]>;
+    [TKey in Exclude<keyof T, `@@${string}`>]-?: Cell<T[TKey]>;
 } : any;
 
 /**
