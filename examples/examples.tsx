@@ -140,6 +140,7 @@ async function loadLazyRoute() {
 function SubroutingMain() {
     return <div>
         <h3>Main</h3>
+        <Link path='page'><a>page</a></Link>
     </div>;
 }
 
@@ -155,7 +156,7 @@ function SubroutingNotFound() {
     </div>;
 }
 
-function SubroutingExample() {
+function SubroutingExample({userId}: {userId: string}) {
     const router = createRouter({
         '': () => <SubroutingMain/>,
         'page': () => <SubroutingSubpage/>,
@@ -167,6 +168,7 @@ function SubroutingExample() {
             <div class='stack-row spacing'>
                 <Link path=''><a>Main</a></Link>
                 <Link path='page'><a>page</a></Link>
+                <Link path={`/users/${userId}`}><a>back</a></Link>
             </div>
         </router.Provider>
         <router.Portal/>
@@ -181,7 +183,7 @@ function RoutingExample() {
             '*': userId => ({
                 '': () => <RoutingUser userId={userId}/>,
                 'subroutes': {
-                    '**': () => <SubroutingExample/>,
+                    '**': () => <SubroutingExample userId={userId}/>,
                 },
             }),
         },

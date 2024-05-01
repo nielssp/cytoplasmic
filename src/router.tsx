@@ -1,6 +1,6 @@
 import { apply, createElement } from "./component";
 import { Context, createValue } from "./context";
-import { Cell, Input, RefCell, cell, input, ref } from "./cell";
+import { Cell, Input, RefCell, cell, input, ref, zip } from "./cell";
 import { ElementChildren } from './types';
 import { Emitter, createEmitter } from './emitter';
 
@@ -38,7 +38,9 @@ export interface Router {
     onNavigate: Emitter<ActiveRoute>;
     onNavigated: Emitter<ActiveRoute>;
     resolve(path: Path): ActiveRoute;
+    pushState(path: Path): void;
     navigate(path: Path, skipHistory?: boolean): Promise<void>;
+    getUrl(path: Path): string;
     Portal({}: {}): JSX.Element;
     Provider({children}: {children: ElementChildren}): JSX.Element;
     Link(props: {
@@ -54,41 +56,53 @@ class RouterImpl implements Router {
     private readonly _activeRoute = ref<ActiveRoute>();
     private readonly _onNavigate = createEmitter<ActiveRoute>();
     private readonly _onNavigated = createEmitter<ActiveRoute>();
+    private isRoot = false;
+    private parentRouter?: Router;
+    private parentPath = cell<string[]>([]);
 
-    constructor(protected readonly config: RouterConfig, private readonly _strategy: RouterStategy) {
+    constructor(
+        protected readonly config: RouterConfig,
+        public readonly strategy: RouterStategy
+    ) {
     }
 
-    get strategy(): RouterStategy {
-        return this._strategy;
-    }
+    readonly activeRoute: RefCell<ActiveRoute> = this._activeRoute.asCell();
 
-    get activeRoute(): RefCell<ActiveRoute> {
-        return this._activeRoute.asCell();
-    }
+    readonly onNavigate: Emitter<ActiveRoute> = this._onNavigate.asEmitter();
 
-    get onNavigate(): Emitter<ActiveRoute> {
-        return this._onNavigate.asEmitter();
-    }
+    readonly onNavigated: Emitter<ActiveRoute> = this._onNavigated.asEmitter();
 
-    get onNavigated(): Emitter<ActiveRoute> {
-        return this._onNavigated.asEmitter();
+    private isAbsolute(path: Path): path is string[] {
+        return typeof path !== 'string' && (!path.length || !path[0].startsWith('.'));
     }
 
     protected toAbsolute(path: Path): string[] {
+        if (this.isAbsolute(path)) {
+            return path;
+        }
         let pathArray: string[];
         if (typeof path === 'string') {
             pathArray = path.split('/').filter(s => s);
+            if (path.startsWith('/')) {
+                pathArray.unshift('/');
+            }
         } else {
             pathArray = [...path];
         }
         if (pathArray.length && pathArray[0].startsWith('.')) {
             const current = [...this._activeRoute.value?.path ?? []];
+            let parentPath = this.parentPath.value;
             if (pathArray[0] === '.') {
                 pathArray.shift();
                 current.push(...pathArray);
             } else {
                 while (pathArray[0] === '..') {
-                    if (current.length) {
+                    if (current.length && current[0] !== '/') {
+                        pathArray.shift();
+                        current.pop();
+                    } else if (parentPath.length) {
+                        current.unshift('/', ...parentPath);
+                        parentPath = [];
                         pathArray.shift();
                         current.pop();
                     } else {
@@ -105,6 +119,13 @@ class RouterImpl implements Router {
 
     resolve(path: Path): ActiveRoute {
         const absolute = this.toAbsolute(path);
+        if (absolute[0] === '/') {
+            if (this.parentRouter) {
+                return this.parentRouter.resolve(absolute);
+            } else {
+                absolute.shift();
+            }
+        }
         absolute.push('');
         let route = this.config;
         let element: JSX.Element | Promise<JSX.Element> | undefined;
@@ -153,11 +174,16 @@ class RouterImpl implements Router {
         };
     }
 
-    private pathToString(path: Path): string {
-        if (typeof path === 'string') {
-            path = this.toAbsolute(path);
+    getUrl(path: Path): string {
+        const absolute = this.toAbsolute(path);
+        if (this.parentRouter) {
+            if (absolute.length && absolute[0] === '/') {
+                return this.parentRouter.getUrl(absolute);
+            } else {
+                return this.parentRouter.getUrl([...this.parentPath.value, ...absolute]);
+            }
         }
-        const pathString = pathToString(path);
+        const pathString = pathToString(absolute);
         if (this.strategy === 'hash') {
             return `#${pathString}`;
         } else {
@@ -165,12 +191,25 @@ class RouterImpl implements Router {
         }
     }
 
+    pushState(path: Path) {
+        const absolute = this.toAbsolute(path);
+        if (this.isRoot) {
+            window.history.pushState({
+                path: absolute,
+            }, document.title, this.getUrl(absolute));
+        } else if (this.parentRouter) {
+            this.parentRouter.pushState([...this.parentPath.value, ...absolute]);
+        }
+    }
+
     async navigate(path: Path, skipHistory: boolean = false): Promise<void> {
+        const absolute = this.toAbsolute(path);
+        if (this.parentRouter && absolute.length && absolute[0] === '/') {
+            return this.parentRouter.navigate(absolute);
+        }
         const route = this.resolve(path);
         if (!skipHistory) {
-            window.history.pushState({
-                path: route.path,
-            }, document.title, this.pathToString(route.path));
+            this.pushState(route.path);
         }
         this._activeRoute.value = route;
         this._onNavigate.emit(route);
@@ -197,7 +236,7 @@ class RouterImpl implements Router {
                     return;
                 }
                 const parent = marker.parentElement;
-                subcontext = context.provide(ActiveRouter, parentRouter ?? this);
+                subcontext = context.provide(ActiveRouter, this);
                 apply(element, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
@@ -222,6 +261,7 @@ class RouterImpl implements Router {
             const onParentNavigate = (route: ActiveRoute | undefined) => {
                 if (route) {
                     const path = route.path.slice(route.route.length - 1);
+                    this.parentPath.value = route.path.slice(0, route.route.length - 1);
                     this.navigate(path, true);
                 }
             };
@@ -230,8 +270,10 @@ class RouterImpl implements Router {
                 this.currentElement.value = undefined;
                 this.currentElement.getAndObserve(observer);
                 if (parentRouter) {
+                    this.parentRouter = parentRouter;
                     parentRouter.activeRoute.getAndObserve(onParentNavigate);
                 } else {
+                    this.isRoot = true;
                     window.addEventListener('popstate', onPopState);
                     if (this.strategy === 'hash') {
                         window.addEventListener('hashchange', onHashChange);
@@ -246,8 +288,10 @@ class RouterImpl implements Router {
                 childNodes.splice(0);
                 this.currentElement.unobserve(observer);
                 if (parentRouter) {
+                    this.parentRouter = undefined;
                     parentRouter.activeRoute.unobserve(onParentNavigate);
                 } else {
+                    this.isRoot = false;
                     window.removeEventListener('popstate', onPopState);
                     if (this.strategy === 'hash') {
                         window.removeEventListener('hashchange', onHashChange);
@@ -278,8 +322,14 @@ class RouterImpl implements Router {
             const children = apply(props.children, context);
             children.forEach(child => {
                 if (child instanceof HTMLAnchorElement) {
-                    context.onDestroy(path.getAndObserve(path => {
-                        child.href = this.pathToString(path);
+                    context.onDestroy(zip(path, this.parentPath).getAndObserve(([path, parentPath]) => {
+                        const absolute = this.toAbsolute(path);
+                        if (this.parentRouter) {
+                            child.href = this.parentRouter.getUrl([...parentPath, ...absolute]);
+                        } else {
+                            child.href = this.getUrl([...parentPath, ...absolute]);
+                        }
+                        child.href = this.getUrl(path);
                     }));
                     context.onInit(() => {
                         child.addEventListener('click', onClick);
@@ -307,8 +357,11 @@ export function createRouter(config: RouterConfig, strategy: RouterStategy = 'ha
 export function pathToString(path: Path): string {
     if (typeof path === 'string') {
         return path.split('/').filter(s => s).join('/');
+    } else if (path[0] === '/') {
+        return path.slice(1).join('/');
+    } else {
+        return path.join('/');
     }
-    return path.join('/');
 }
 
 /**
