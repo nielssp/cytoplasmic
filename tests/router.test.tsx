@@ -44,6 +44,8 @@ describe('HashRouter', () => {
             '**': () => <div/>,
         });
 
+        mountTest(<router.Portal/>);
+
         await router.navigate('');
         expect(window.location.hash).toBe('');
 
