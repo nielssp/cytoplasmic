@@ -309,11 +309,15 @@ In cell arrays each item is a cell which makes it possible to efficiently update
 
 ## Lazily loaded components
 
+The `<Lazy>` component can be used to show components loaded lazily via the `import()`-function:
+
 ```tsx
 <Lazy else='loading...'>{() => import('./my-component').then(m => <m.MyComponent/>)}</Lazy>
 ```
 
-## Change omponent dynamically
+## Change component dynamically
+
+The `<Dynamic>` can be used to render a component stored in a cell:
 
 ```tsx
 const component = ref<Component<{}>>();
@@ -322,6 +326,8 @@ component.value = MyComponent;
 
 <Dynamic component={component} else='no component'/>
 ```
+
+This makes it possible to dynamically replace the rendered component with another one. Some possible uses are tab pages, modals, etc.
 
 ## Utilities
 

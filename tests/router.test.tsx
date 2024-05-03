@@ -60,6 +60,59 @@ describe('HashRouter', () => {
 
         await router.navigate('./3');
         expect(window.location.hash).toBe('#bar/bazbar/3');
+
+        await router.navigate('/3');
+        expect(window.location.hash).toBe('#3');
+    });
+
+    test('subrouting', async () => {
+        const subrouter = createRouter({
+            '': () => <div>sub root</div>,
+            'foo': () => <div>sub foo</div>,
+            '**': () => <div>sub not found</div>,
+        });
+        const router = createRouter({
+            '': () => <div>root</div>,
+            'foo': {
+                '**': () => <subrouter.Portal/>,
+            },
+            '**': () => <div>not found</div>,
+        });
+
+        const element = mountTest(<router.Portal/>);
+
+        await router.navigate('')
+        expect(window.location.hash).toBe('');
+
+        await router.navigate('foo/foo');
+        expect(window.location.hash).toBe('#foo/foo');
+
+        expect(element.container.textContent).toBe('sub foo');
+
+        await subrouter.navigate('bar');
+        expect(window.location.hash).toBe('#foo/bar');
+
+        expect(element.container.textContent).toBe('sub not found');
+
+        expect(subrouter.getUrl('foo')).toBe('#foo/foo');
+        expect(subrouter.getUrl('/foo')).toBe('#foo');
+        expect(subrouter.getUrl('./foo')).toBe('#foo/bar/foo');
+
+        await subrouter.navigate('../../bar');
+        expect(window.location.hash).toBe('#bar');
+        expect(element.container.textContent).toBe('not found');
+
+        await router.navigate('foo');
+        expect(window.location.hash).toBe('#foo');
+        expect(element.container.textContent).toBe('sub root');
+
+        await subrouter.navigate('/');
+        expect(window.location.hash).toBe('');
+        expect(element.container.textContent).toBe('root');
+
+        expect(numObservers(router.activeRoute)).toBe(0);
+        expect(numObservers(router.onNavigate)).toBe(0);
+        expect(numObservers(router.onNavigated)).toBe(0);
     });
 
     test('Portal', async () => {

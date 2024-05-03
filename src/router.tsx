@@ -5,6 +5,22 @@ import { ElementChildren } from './types';
 import { Emitter, createEmitter } from './emitter';
 
 /**
+ * Routing configuration that maps path segments to components.
+ *
+ * @example
+ * ```tsx
+ * createRouter({
+ *   '': () => <Home/>,
+ *   'users': {
+ *     '': () => <ListUsers/>,
+ *     '*': userId => ({
+ *       '': () => <ShowUser userId={userId}/>
+ *       'comments': () => <ListUsersComments userId={userId}/>
+ *     }),
+ *   },
+ *   '**': () => <NotFound/>,
+ * });
+ * ```
  * @category Routing
  */
 export type RouterConfig = {
@@ -33,10 +49,10 @@ export interface ActiveRoute {
  * @category Routing
  */
 export interface Router {
-    strategy: RouterStategy;
-    activeRoute: RefCell<ActiveRoute>;
-    onNavigate: Emitter<ActiveRoute>;
-    onNavigated: Emitter<ActiveRoute>;
+    readonly strategy: RouterStategy;
+    readonly activeRoute: RefCell<ActiveRoute>;
+    readonly onNavigate: Emitter<ActiveRoute>;
+    readonly onNavigated: Emitter<ActiveRoute>;
     resolve(path: Path): ActiveRoute;
     pushState(path: Path): void;
     navigate(path: Path, skipHistory?: boolean): Promise<void>;
