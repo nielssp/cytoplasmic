@@ -32,16 +32,46 @@ export type RouterConfig = {
 };
 
 /**
+ * A slash-separated path string or an array of path segments. Paths can be
+ * relative to the root of the active router (no prefix), relative to the
+ * current route (prefixed with `.` or `..`), or relative to root of the root
+ * router when multiple levels of routers are active (prefixed with '/').
+ *
+ * @example
+ * ```tsx
+ * 'foo/bar/baz'
+ * './foo'
+ * '../../foo'
+ * ['foo', 'bar', 'baz']
+ * ['.', 'foo', 'bar']
+ * ['/', 'foo']
+ * ```
+ *
  * @category Routing
  */
 export type Path = string | string[];
 
 /**
+ * An object describing the current route.
+ *
  * @category Routing
  */
 export interface ActiveRoute {
+    /**
+     * The current path as an array of path segments, e.g. `['posts', '42',
+     * 'comments']`;
+     */
     path: string[];
+
+    /**
+     * The activated route as an array of segments, e.g. `['posts', '*', 'comments']`.
+     */
     route: string[];
+
+    /**
+     * A promise resolving to the element associated with the activated route or
+     * undefined if not found.
+     */
     element: Promise<JSX.Element | undefined>;
 }
 
@@ -65,6 +95,16 @@ export interface Router {
     }): JSX.Element;
 }
 
+/**
+ * Strategy used for routing.
+ *
+ * * "hash": Use only the fragment-part of the URI, e.g. "https://example.com/some/path#foo/bar/baz".
+ *   This works regardless of server setup.
+ * * "path": Use the full path-party of the URI, e.g. "https://example.com/foo/bar/baz".
+ *   This requires rewrite rules to be correctly set up on the server side.
+ *
+ * @category Routing
+ */
 export type RouterStategy = 'hash' | 'path';
 
 class RouterImpl implements Router {
