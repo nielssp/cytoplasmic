@@ -1,6 +1,6 @@
 # Cytoplasmic changelog
 
-## Unreleased
+## Cytoplasmic 0.8.0
 
 New features
 

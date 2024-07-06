@@ -1,6 +1,6 @@
 {
   "name": "cytoplasmic",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Reactive building blocks for typesafe JSX-based web applications",
   "author": "Niels Poulsen",
   "license": "MIT",
