@@ -1,8 +1,9 @@
 /** 
  * @jsx createElement
+ * @jsxFrag Fragment
  * @jest-environment jsdom
  */
-import { Cell, cell, Component, Context, createElement, createEmitter, Deref, DocumentListener, Dynamic, ElementChildren, Lazy, Observe, ref, Show, Style, Switch, Unwrap, WindowListener } from '../src';
+import { Cell, Fragment, cell, Component, Context, createElement, createEmitter, Deref, DocumentListener, Dynamic, ElementChildren, Lazy, Observe, ref, Show, Style, Switch, Unwrap, WindowListener } from '../src';
 import { mountTest, numObservers } from './test-util';
 
 describe('Show', () => {
@@ -137,17 +138,37 @@ describe('Switch', () => {
     });
 
     it('shows else branch when not matched', () => {
-        const a = cell<{type: 'a', a: number} | {type: 'b', b: string}>({type: 'a', a: 5});
+        const a = cell<{type: 'a', a: number} | {type: 'b', b: {c: string}} | undefined>({type: 'a', a: 5});
 
+        const observer = jest.fn();
         const element = mountTest(
             <Switch with={a} on='type' else='default'>{{
-                'b': b => <span>b: {b.props.b}</span>,
+                'a': a => {
+                    return <>
+                        <Observe from={a} then={observer}/>
+                        <span>a: {a.props.a}</span>
+                    </>;
+                },
+                'b': b => <span>b: {b.props.b.props.c}</span>,
             }}</Switch>
         );
-        expect(element.container.textContent).toBe('default');
+        expect(element.container.textContent).toBe('a: 5');
 
-        a.value = {type: 'b', b: 'foo'};
+        expect(observer).toHaveBeenCalledTimes(0);
+
+        a.value = {type: 'b', b: {c: 'foo'}};
         expect(element.container.textContent).toBe('b: foo');
+
+        expect(observer).toHaveBeenCalledTimes(0);
+
+        a.value = {type: 'a', a: 5};
+        expect(element.container.textContent).toBe('a: 5');
+
+        a.value = {type: 'b', b: {c: 'foo'}};
+        expect(element.container.textContent).toBe('b: foo');
+
+        a.value = undefined;
+        expect(element.container.textContent).toBe('default');
 
         element.destroy();
 

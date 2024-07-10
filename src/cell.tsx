@@ -64,13 +64,17 @@ export abstract class Cell<T> implements Observable<T> {
      * Get the cells current value and attach an observer. The observer function
      * is called once with the current value immediately upon calling this method.
      *
+     * The observer is attached before it's called with the current value of the
+     * cell.
+     *
      * @param observer - The observer function to attach.
      * @returns A function that can be called to detach the observer.
      * Alternatively {@link unobserve} can be called.
      */
     getAndObserve(observer: CellObserver<T>): () => void {
+        const unobserve = this.observe(observer);
         observer(this.value);
-        return this.observe(observer);
+        return unobserve;
     }
 
     /**
