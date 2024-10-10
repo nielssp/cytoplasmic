@@ -53,7 +53,7 @@ Use the `mount()` function to create an instance of your component and attach it
 
 
 ```tsx
-import { createElement, mount} from 'cstk';
+import { createElement, mount} from 'cytoplasmic';
 
 // A component without inputs
 function HelloWorld() {
@@ -71,7 +71,7 @@ function HelloName({name}: {
 function App() {
     return <div>
         <HelloWorld/>
-        <HelloName name='CSTK'/>
+        <HelloName name='Cytoplasmic'/>
     </div>;
 }
 
