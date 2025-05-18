@@ -152,48 +152,21 @@ export abstract class TextInputControl<T> extends Control<T> {
             input.id = this.id;
         }
         this.inputs.push(input);
-        let interval: number|undefined;
         context.onDestroy(this.getAndObserve(value => {
             const str = this.stringify(value);
             if (str !== input.value) {
                 input.value = str;
             }
         }));
-        const focusListener = () => {
-            this.value = this.parse(input.value);
-            let mostRecentValue = input.value;
-            if (interval == undefined) {
-                interval = window.setInterval(() => {
-                    if (input.value !== mostRecentValue) {
-                        if (this.isValid(input.value)) {
-                            this.value = this.parse(input.value);
-                        }
-                        mostRecentValue = input.value;
-                    }
-                }, 33);
-            }
-        };
-        input.addEventListener('focus', focusListener);
-        const clear = () => {
-            input.value = this.stringify(this.value);
-            if (interval != undefined) {
-                clearInterval(interval);
-                interval = undefined;
-            }
-        };
-        input.addEventListener('blur', clear);
-        const changeListener = () => {
+        const inputListener = () => {
             const parsed = this.parse(input.value);
             if (this.value !== parsed) {
                 this.value = parsed;
             }
         };
-        input.addEventListener('change', changeListener);
+        input.addEventListener('input', inputListener);
         context.onDestroy(() => {
-            input.removeEventListener('focus', focusListener);
-            input.removeEventListener('blur', clear);
-            input.removeEventListener('change', changeListener);
-            clear();
+            input.removeEventListener('input', inputListener);
         });
         context.onDestroy(this.disabled.getAndObserve(disabled => input.disabled = disabled));
         context.onDestroy(() => this.inputs.splice(this.inputs.indexOf(input), 1));

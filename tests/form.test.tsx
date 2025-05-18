@@ -85,7 +85,7 @@ describe('CheckboxControl', () => {
         expect(numObservers(control.disabled)).toBe(0);
     });
 
-    it('listens to change events', () => {
+    it('listens to input events', () => {
         const control = new CheckboxControl(true);
 
         const input = ref<HTMLInputElement>();
@@ -202,54 +202,15 @@ describe('TextControl', () => {
 
 
         input.value!.value = 'bar';
-        input.value?.dispatchEvent(new Event('change'));
+        input.value?.dispatchEvent(new Event('input'));
         expect(control.value).toBe('bar');
 
         element.destroy();
 
         input.value!.value = 'baz';
-        input.value?.dispatchEvent(new Event('change'));
+        input.value?.dispatchEvent(new Event('input'));
 
         expect(control.value).toBe('bar');
-        
-        expect(numObservers(control)).toBe(0);
-    });
-
-    it('listens to focus and blur events', () => {
-        jest.useFakeTimers();
-
-        const control = new TextControl('foo');
-
-        const input = ref<HTMLInputElement>();
-        const element = mountTest(
-            <Field control={control}>
-                <label>label</label>
-                <input ref={input} type='text'/>
-            </Field>
-        );
-
-
-        input.value!.value = 'bar';
-        input.value?.dispatchEvent(new Event('focus'));
-        expect(control.value).toBe('bar');
-
-        input.value!.value = 'baz';
-        expect(control.value).toBe('bar');
-        jest.advanceTimersByTime(33);
-        expect(control.value).toBe('baz');
-
-        input.value?.dispatchEvent(new Event('blur'));
-
-        input.value!.value = 'bazbar';
-        jest.advanceTimersByTime(33);
-        expect(control.value).toBe('baz');
-
-        element.destroy();
-
-        input.value!.value = 'foo';
-        input.value?.dispatchEvent(new Event('focus'));
-
-        expect(control.value).toBe('baz');
         
         expect(numObservers(control)).toBe(0);
     });
@@ -270,17 +231,17 @@ describe('IntControl', () => {
         expect(input.value?.value).toBe('0');
 
         input.value!.value = '5';
-        input.value?.dispatchEvent(new Event('change'));
+        input.value?.dispatchEvent(new Event('input'));
 
         expect(control.value).toBe(5);
 
         input.value!.value = '';
-        input.value?.dispatchEvent(new Event('change'));
+        input.value?.dispatchEvent(new Event('input'));
 
         expect(control.value).toBe(0);
 
         input.value!.value = '   -521   ';
-        input.value?.dispatchEvent(new Event('change'));
+        input.value?.dispatchEvent(new Event('input'));
 
         expect(control.value).toBe(-521);
     });
@@ -323,12 +284,12 @@ describe('IntControl', () => {
         expect(input.value?.max).toBe('10');
 
         input.value!.value = '20';
-        input.value?.dispatchEvent(new Event('change'));
+        input.value?.dispatchEvent(new Event('input'));
 
         expect(control.value).toBe(10);
 
         input.value!.value = '-5';
-        input.value?.dispatchEvent(new Event('change'));
+        input.value?.dispatchEvent(new Event('input'));
 
         expect(control.value).toBe(0);
     });

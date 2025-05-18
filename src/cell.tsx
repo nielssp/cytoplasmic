@@ -3,7 +3,7 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Observable, Observer } from './emitter';
+import { MutEmitter, Observable, Observer } from './emitter';
 
 /**
  * A utility type that given a cell type `Cell<TValue>` returns `TValue`.
@@ -708,6 +708,30 @@ export function input<T>(input: Input<T>, defaultValue?: T): Cell<T> {
         return input;
     }
     return new ConstCell(input);
+}
+
+/**
+ * A type that is either a mutable cell containing `T` or an emitter or function that consumes `T`.
+ *
+ * @category Cells
+ */
+export type Output<T> = MutCell<T> | MutEmitter<T> | ((value: T) => void);
+
+/**
+ * Create an output emitter from an `Output`.
+ *
+ * @category Cells
+ */
+export function output<T>(output: Output<T> | undefined): (value: T) => void {
+    if (output === undefined || output === null) {
+        return () => {};
+    } else if (output instanceof MutCell) {
+        return value => output.value = value;
+    } else if (output instanceof MutEmitter) {
+        return value => output.emit(value);
+    } else {
+        return output;
+    }
 }
 
 /**

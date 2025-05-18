@@ -16,10 +16,11 @@
     "watch": "webpack watch --mode=production",
     "dev": "webpack serve --config=webpack.examples.config.js",
     "prepare": "npm run build",
+    "test": "jest",
     "docs": "typedoc src/index.tsx"
   },
   "dependencies": {
-    "tsx-dom-types": "^1.0.0"
+    "tsx-dom-types": "^2.0.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
