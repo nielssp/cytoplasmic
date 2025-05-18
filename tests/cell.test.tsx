@@ -1,4 +1,4 @@
-import { $, Cell, cell, constant, createEmitter, input, output, ref, zip, zipWith } from '../src';
+import { $, Cell, cell, computed, constant, createEmitter, input, output, ref, zip, zipWith } from '../src';
 import { numObservers } from './test-util';
 
 describe('cell', () => {
@@ -220,6 +220,91 @@ describe('$', () => {
         const b = cell(1);
         const c = cell(2);
         const d = $(() => $(a) ? $(b) : $(c));
+
+        expect(d.value).toBe(1);
+
+        a.value = false;
+
+        expect(d.value).toBe(2);
+
+        const observer = jest.fn();
+        d.observe(observer);
+
+        a.value = true;
+
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(1);
+
+        b.value = 3;
+
+        expect(observer).toHaveBeenCalledTimes(2);
+        expect(observer).toHaveBeenCalledWith(3);
+
+        c.value = 4;
+
+        expect(observer).toHaveBeenCalledTimes(3);
+        expect(observer).toHaveBeenCalledWith(3);
+
+        a.value = false;
+
+        expect(observer).toHaveBeenCalledTimes(4);
+        expect(observer).toHaveBeenCalledWith(4);
+
+        d.unobserve(observer);
+        observer.mockClear()
+
+        a.value = false;
+        b.value = 1;
+        c.value = 2;
+
+        expect(observer).not.toHaveBeenCalled();
+
+        expect(numObservers(a)).toBe(0);
+        expect(numObservers(b)).toBe(0);
+        expect(numObservers(c)).toBe(0);
+        expect(numObservers(d)).toBe(0);
+    });
+});
+
+describe('computed', () => {
+    it('tracks dependencies', () => {
+        const a = cell(1);
+        const b = cell(2);
+        const c = computed(get => get(a) + get(b));
+
+        expect(c.value).toBe(3);
+
+        a.value = 2;
+
+        expect(c.value).toBe(4);
+
+        const observer = jest.fn();
+        c.observe(observer);
+
+        expect(observer).not.toHaveBeenCalled();
+
+        a.value = 5;
+
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(7);
+
+        c.unobserve(observer);
+        observer.mockClear()
+
+        a.value = 3;
+
+        expect(observer).not.toHaveBeenCalled();
+
+        expect(numObservers(a)).toBe(0);
+        expect(numObservers(b)).toBe(0);
+        expect(numObservers(c)).toBe(0);
+    });
+
+    it('tracks changing dependencies', () => {
+        const a = cell(true);
+        const b = cell(1);
+        const c = cell(2);
+        const d = computed(get => get(a) ? get(b) : get(c));
 
         expect(d.value).toBe(1);
 
@@ -514,6 +599,60 @@ describe('Cell', () => {
         const a = cell(Promise.resolve(1));
         const b = a.await(() => {});
         return expect(b.toPromise()).resolves.toBe(1);
+    });
+
+    test('cached', () => {
+        const a = cell(5);
+
+        const expensive = jest.fn(x => x + 1);
+
+        const b = a.map(expensive);
+
+        expect(b.value).toBe(6);
+        expect(b.value).toBe(6);
+
+        expect(expensive).toHaveBeenCalledTimes(2);
+
+        const c = b.cached();
+        expect(expensive).toHaveBeenCalledTimes(3);
+
+        expect(c.value).toBe(6);
+        expect(c.value).toBe(6);
+        expect(expensive).toHaveBeenCalledTimes(5);
+
+        const observer = jest.fn();
+        c.observe(observer);
+
+        expect(observer).not.toHaveBeenCalled();
+
+        expect(c.value).toBe(6);
+        expect(c.value).toBe(6);
+        expect(expensive).toHaveBeenCalledTimes(6);
+
+        a.value = 10;
+
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(11);
+        expect(expensive).toHaveBeenCalledTimes(7);
+
+        expect(c.value).toBe(11);
+        expect(expensive).toHaveBeenCalledTimes(7);
+
+        c.unobserve(observer);
+        observer.mockClear()
+
+        a.value = 3;
+
+        expect(observer).not.toHaveBeenCalled();
+
+        expect(expensive).toHaveBeenCalledTimes(7);
+
+        expect(c.value).toBe(4);
+        expect(expensive).toHaveBeenCalledTimes(8);
+
+        expect(numObservers(a)).toBe(0);
+        expect(numObservers(b)).toBe(0);
+        expect(numObservers(c)).toBe(0);
     });
 });
 

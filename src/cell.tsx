@@ -224,6 +224,10 @@ export abstract class Cell<T> implements Observable<T> {
         });
     }
 
+    cached(): Cell<T> {
+        return new CachingCell(this);
+    }
+
     /**
      * Create a cell from an existing observable (e.g. an {@link Emitter}) and
      * an initial value.
@@ -328,6 +332,35 @@ class MappingCell<TIn, TOut> extends ObserverCell<TOut> {
     }
 
     protected init() {
+        this.source.observe(this.sourceObserver);
+    }
+
+    protected destroy() {
+        this.source.unobserve(this.sourceObserver);
+    }
+}
+
+class CachingCell<T> extends ObserverCell<T> {
+    private cachedValue = this.source.value;
+
+    private sourceObserver: CellObserver<T> = value => {
+        this.cachedValue = value;
+        this.emitValue(value);
+    };
+
+    constructor(protected source: Cell<T>) {
+        super();
+    }
+
+    get value(): T {
+        if (!this.observed) {
+            this.cachedValue = this.source.value;
+        }
+        return this.cachedValue;
+    }
+
+    protected init() {
+        this.cachedValue = this.source.value;
         this.source.observe(this.sourceObserver);
     }
 
@@ -514,6 +547,77 @@ export function $<T>(computation: Cell<T> | (() => T)): T | Cell<T> {
         return new ComputingCell(new Set(autoDependencies.splice(0)), computation);
     }
 }
+
+
+export type DerefFunction = <T>(cell: Cell<T>) => T;
+
+class ComputingCell2<T> extends ObserverCell<T> {
+    private sources: Set<Cell<any>> = new Set();
+    private sourceObserver = () => {
+        this.emitValue(this.value);
+    };
+
+    constructor(private computation: (get: DerefFunction) => T) {
+        super();
+        this.execute();
+    }
+
+    private execute(): T {
+        const autoDependencies: Cell<any>[] = [];
+        const value = this.computation(cell => {
+            autoDependencies.push(cell);
+            return cell.value;
+        });
+        autoDependencies.splice(0).forEach(cell => {
+            if (!this.sources.has(cell)) {
+                this.sources.add(cell);
+                if (this.observed) {
+                    cell.observe(this.sourceObserver);
+                }
+            }
+        });
+        return value;
+    }
+
+    get value(): T {
+        return this.execute();
+    }
+
+    protected init(): void {
+        this.sources.forEach(source => source.observe(this.sourceObserver));
+    }
+
+    protected destroy(): void {
+        this.sources.forEach(source => source.unobserve(this.sourceObserver));
+    }
+}
+
+/**
+ * Create a computed cell. Do not use `cell.value` inside the computation,
+ * always us `get(cell)` to unwrap cells to properly track dependencies.
+ *
+ * This is an alternative implementation of {@link $} that doesn't rely on
+ * global state.
+ *
+ * @example
+ * In the following example `c` and `d` are equivalent:
+ * ```tsx
+ * const a = cell(1);
+ * const b = cell(2);
+ * const c = computed(get => get(a) + get(b));
+ * const d = zipWith([a, b], (a, b) => a + b);
+ * ```
+ *
+ * @param computation - A function that can unwrap cells using `get(cell)` and
+ * compute a resulting value.
+ * @returns A cell that computes its value based on the provided computation
+ * function.
+ * @category Cells
+ */
+export function computed<T>(computation: ((get: DerefFunction) => T)): Cell<T> {
+    return new ComputingCell2(computation);
+}
+
 
 /**
  * A mutable cell.
