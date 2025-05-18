@@ -242,6 +242,7 @@ export function Show(props: {
                 return;
             }
             if (!marker.parentElement) {
+                console.warn('Show marker parent missing');
                 return; // shouldn't be possible
             }
             const parent = marker.parentElement;

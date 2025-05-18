@@ -283,17 +283,22 @@ class RouterImpl implements Router {
             const childNodes: Node[] = [];
             let subcontext: Context|undefined;
             const observer = (element: JSX.Element | undefined) => {
+                if (!marker.parentElement) {
+                    console.warn('Portal marker parent missing');
+                    return;
+                }
                 if (subcontext) {
                     childNodes.forEach(node => node.parentElement?.removeChild(node));
                     childNodes.splice(0);
                     subcontext.destroy();
+                    subcontext = undefined;
                 }
-                if (!element || !marker.parentElement) {
+                if (!element) {
                     return;
                 }
                 const parent = marker.parentElement;
-                subcontext = context.provide(ActiveRouter, this);
-                apply(element, subcontext).forEach(node => {
+                subcontext = new Context(context);
+                apply(element, subcontext.provide(ActiveRouter, this)).forEach(node => {
                     parent.insertBefore(node, marker);
                     childNodes.push(node);
                 });

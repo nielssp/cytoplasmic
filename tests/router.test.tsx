@@ -2,7 +2,7 @@
  * @jsx createElement
  * @jest-environment jsdom
  */
-import { createRouter, createElement, cell, ActiveRouter, ref, pathToString, Link } from '../src';
+import { createRouter, createElement, cell, ActiveRouter, ref, pathToString, Link, Show } from '../src';
 import { mountTest, numObservers } from './test-util';
 
 describe('HashRouter', () => {
@@ -221,6 +221,53 @@ describe('HashRouter', () => {
         await new Promise(r => setTimeout(r, 0));
 
         expect(element.container.textContent).toBe('');
+    });
+
+    test('conditional Portal', async () => {
+        const a = cell(5);
+
+        const router = createRouter({
+            '': () => <Show when={a.eq(10)}>root: {a}</Show>,
+            'a': () => <div>a: {a}</div>,
+            '**': () => <div>not found</div>,
+        });
+
+        window.location.hash = '';
+
+        const element = mountTest(
+            <Show when={a.eq(10)} else='not 10'>
+                show: <router.Portal/>
+            </Show>
+        );
+
+        expect(element.container.textContent).toBe('not 10');
+
+        a.value = 10;
+
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(element.container.textContent).toBe('show: root: 10');
+
+        await router.navigate('a');
+        expect(window.location.hash).toBe('#a');
+
+        expect(element.container.textContent).toBe('show: a: 10');
+
+        a.value = 5;
+
+        expect(element.container.textContent).toBe('not 10');
+
+        window.location.hash = '';
+
+        a.value = 10;
+
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(element.container.textContent).toBe('show: root: 10');
+
+        element.destroy();
+
+        expect(numObservers(a)).toBe(0);
     });
 });
 
