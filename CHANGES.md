@@ -1,5 +1,11 @@
 # Cytoplasmic changelog
 
+## Cytoplasmic 0.9.0
+
+New features:
+
+- `output()`
+
 ## Cytoplasmic 0.8.0
 
 New features

@@ -1,4 +1,4 @@
-import { $, Cell, cell, constant, createEmitter, input, ref, zip, zipWith } from '../src';
+import { $, Cell, cell, constant, createEmitter, input, output, ref, zip, zipWith } from '../src';
 import { numObservers } from './test-util';
 
 describe('cell', () => {
@@ -77,6 +77,67 @@ describe('input', () => {
         const b = input(null, 42);
         expect(a.value).toBe(42);
         expect(b.value).toBe(42);
+    });
+});
+
+describe('output', () => {
+    it('creates void output', () => {
+        const out = output<number>(undefined);
+        out(5);
+    });
+    it('creates function output', () => {
+        const observer = jest.fn();
+        const out = output<number>(observer);
+        out(5);
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(5);
+        out(10);
+        expect(observer).toHaveBeenCalledWith(10);
+    });
+    it('creates cell output', () => {
+        const a = cell(42);
+        const out = output<number>(a);
+        out(5);
+        expect(a.value).toBe(5);
+
+        const observer = jest.fn();
+        a.observe(observer);
+
+        expect(observer).not.toHaveBeenCalled();
+
+        out(10);
+
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(10);
+
+        a.unobserve(observer);
+
+        expect(a.value).toBe(10);
+
+        observer.mockClear()
+        out(15);
+        expect(observer).not.toHaveBeenCalled();
+    });
+    it('creates emitter output', () => {
+        const a = createEmitter<number>();
+
+        const observer = jest.fn();
+        a.observe(observer);
+
+        const out = output<number>(a);
+
+        expect(observer).not.toHaveBeenCalled();
+
+        out(5);
+
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(5);
+
+        a.unobserve(observer);
+        observer.mockClear()
+
+        out(15);
+        expect(observer).not.toHaveBeenCalled();
     });
 });
 
