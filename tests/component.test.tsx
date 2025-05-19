@@ -1,8 +1,9 @@
 /** 
  * @jsx createElement
  * @jsxFrag Fragment
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
+import { describe, it, expect, vi } from 'vitest';
 import { Cell, Fragment, cell, Component, Context, createElement, createEmitter, Deref, DocumentListener, Dynamic, ElementChildren, Lazy, Observe, ref, Show, Style, Switch, Unwrap, WindowListener } from '../src';
 import { mountTest, numObservers } from './test-util';
 
@@ -69,8 +70,8 @@ describe('Show', () => {
     });
 
     it('destroys its subcontext', () => {
-        const init = jest.fn();
-        const destroy = jest.fn();
+        const init = vi.fn();
+        const destroy = vi.fn();
         const Subcomponent = ({num}: {
             num: Cell<number>,
         }, context: Context) => {
@@ -140,7 +141,7 @@ describe('Switch', () => {
     it('shows else branch when not matched', () => {
         const a = cell<{type: 'a', a: number} | {type: 'b', b: {c: string}} | undefined>({type: 'a', a: 5});
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         const element = mountTest(
             <Switch with={a} on='type' else='default'>{{
                 'a': a => {
@@ -242,8 +243,8 @@ describe('Deref', () => {
     });
 
     it('destroys its subcontext', () => {
-        const init = jest.fn();
-        const destroy = jest.fn();
+        const init = vi.fn();
+        const destroy = vi.fn();
         let internalNumCell: Cell<number> | undefined;
         const Subcomponent = ({num}: {
             num: Cell<number>,
@@ -315,8 +316,8 @@ describe('Unwrap', () => {
     });
 
     it('destroys its subcontext', () => {
-        const init = jest.fn();
-        const destroy = jest.fn();
+        const init = vi.fn();
+        const destroy = vi.fn();
         let internalNumCell: Cell<number> | undefined;
         const Subcomponent = ({num}: {
             num: number,
@@ -405,8 +406,8 @@ describe('Lazy', () => {
     });
 
     it('destroys its subcontext', async () => {
-        const init = jest.fn();
-        const destroy = jest.fn();
+        const init = vi.fn();
+        const destroy = vi.fn();
         const Subcomponent = ({num}: {
             num: Cell<number>,
         }, context: Context) => {
@@ -447,7 +448,7 @@ describe('Lazy', () => {
     });
 
     it('handles errors', async () => {
-        const onError = jest.fn();
+        const onError = vi.fn();
         const element = mountTest(
             <Lazy onError={onError}>{() => Promise.reject('foo')}</Lazy>
         );
@@ -497,8 +498,8 @@ describe('Dynamic', () => {
     });
 
     it('destroys its subcontext', () => {
-        const init = jest.fn();
-        const destroy = jest.fn();
+        const init = vi.fn();
+        const destroy = vi.fn();
         const Subcomponent = ({num}: {
             num: Cell<number>,
         }, context: Context) => {
@@ -587,7 +588,7 @@ describe('createElement', () => {
     });
 
     it('adds event listeners', () => {
-        const onClick = jest.fn();
+        const onClick = vi.fn();
         const elementRef = ref<HTMLButtonElement>();
         const element = mountTest(
             <button ref={elementRef} onClick={onClick}>test</button>
@@ -746,7 +747,7 @@ describe('createElement', () => {
 describe('Observe', () => {
     it('observes an observable', () => {
         const emitter = createEmitter();
-        const observer = jest.fn();
+        const observer = vi.fn();
 
         const element = mountTest(
             <Observe from={emitter} then={observer}/>
@@ -767,7 +768,7 @@ describe('Observe', () => {
 
 describe('WindowListener', () => {
     it('adds an event listener', () => {
-        const observer = jest.fn();
+        const observer = vi.fn();
 
         const element = mountTest(
             <WindowListener on='click' then={observer}/>
@@ -787,7 +788,7 @@ describe('WindowListener', () => {
 
 describe('DocumentListener', () => {
     it('adds an event listener', () => {
-        const observer = jest.fn();
+        const observer = vi.fn();
 
         const element = mountTest(
             <DocumentListener on='click' then={observer}/>

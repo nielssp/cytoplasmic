@@ -1,7 +1,8 @@
 /** 
  * @jsx createElement
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
+import { describe, it, expect, vi, test } from 'vitest';
 import { Context, createValue, createElement, cell } from '../src';
 import { mountTest, numObservers } from './test-util';
 
@@ -9,8 +10,8 @@ describe('Context', () => {
     it('runs initializers on initialization', () => {
         const context = new Context;
 
-        const init1 = jest.fn();
-        const init2 = jest.fn();
+        const init1 = vi.fn();
+        const init2 = vi.fn();
 
         context.onInit(init1);
         context.onInit(init2);
@@ -22,7 +23,7 @@ describe('Context', () => {
         expect(init1).toHaveBeenCalledTimes(1);
         expect(init2).toHaveBeenCalledTimes(1);
 
-        const init3 = jest.fn();
+        const init3 = vi.fn();
         context.onInit(init3);
         expect(init3).toHaveBeenCalledTimes(1);
     });
@@ -30,13 +31,13 @@ describe('Context', () => {
     it('runs initializers on initialization', () => {
         const context = new Context;
 
-        const destroy1 = jest.fn();
+        const destroy1 = vi.fn();
 
         context.onDestroy(destroy1);
 
         context.init();
 
-        const destroy2 = jest.fn();
+        const destroy2 = vi.fn();
         context.onDestroy(destroy2);
 
         expect(destroy1).toHaveBeenCalledTimes(0);
@@ -47,7 +48,7 @@ describe('Context', () => {
         expect(destroy1).toHaveBeenCalledTimes(1);
         expect(destroy2).toHaveBeenCalledTimes(1);
 
-        const destroy3 = jest.fn();
+        const destroy3 = vi.fn();
         context.onDestroy(destroy3);
 
         expect(destroy3).toHaveBeenCalledTimes(1);

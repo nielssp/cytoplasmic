@@ -1,3 +1,4 @@
+import { describe, it, test, expect, vi } from 'vitest';
 import { DummyTranslationProvider, Emitter, Observable, _, _n, cell, registerTranslationProvider } from '../src';
 import { numObservers } from './test-util';
 
@@ -46,7 +47,7 @@ describe('_', () => {
 
         expect(str.value).toBe('Foo 7 and 10 and 15');
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         str.observe(observer);
 
         b.value = 12;
@@ -65,7 +66,7 @@ describe('_', () => {
         const str = _('Foobar');
         expect(str.value).toBe('foobar');
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         str.observe(observer);
 
         provider.uppercase.value = true;
@@ -89,7 +90,7 @@ describe('_n', () => {
 
         expect(str.value).toBe('Foo 1 and 15');
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         str.observe(observer);
 
         n.value = 2;
@@ -107,7 +108,7 @@ describe('_n', () => {
         const str = _n('Foobar', 'Foobars', {n: 1});
         expect(str.value).toBe('foobar');
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         str.observe(observer);
 
         provider.uppercase.value = true;

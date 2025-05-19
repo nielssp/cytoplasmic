@@ -1,8 +1,8 @@
 /** 
  * @jsx createElement
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
-
+import { describe, it, expect } from 'vitest';
 import { CheckboxControl, Field, IntControl, RadioGroup, TextControl, TextInputControl, cell, createElement, createId, ref } from '../src';
 import { mountTest, numObservers } from './test-util';
 

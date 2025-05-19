@@ -1,3 +1,4 @@
+import { describe, it, test, expect, vi } from 'vitest';
 import { $, Cell, cell, computed, constant, createEmitter, input, output, ref, zip, zipWith } from '../src';
 import { numObservers } from './test-util';
 
@@ -40,7 +41,7 @@ describe('cell', () => {
 
         expect(a.value).toBe(10);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         a.observe(observer);
 
         emitter.emit(15);
@@ -86,7 +87,7 @@ describe('output', () => {
         out(5);
     });
     it('creates function output', () => {
-        const observer = jest.fn();
+        const observer = vi.fn();
         const out = output<number>(observer);
         out(5);
         expect(observer).toHaveBeenCalledTimes(1);
@@ -100,7 +101,7 @@ describe('output', () => {
         out(5);
         expect(a.value).toBe(5);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         a.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -121,7 +122,7 @@ describe('output', () => {
     it('creates emitter output', () => {
         const a = createEmitter<number>();
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         a.observe(observer);
 
         const out = output<number>(a);
@@ -160,7 +161,7 @@ describe('MutCellImpl', () => {
     it('notifies observers when changed', () => {
         const a = cell(0);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         a.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -193,7 +194,7 @@ describe('$', () => {
 
         expect(c.value).toBe(4);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         c.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -227,7 +228,7 @@ describe('$', () => {
 
         expect(d.value).toBe(2);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         d.observe(observer);
 
         a.value = true;
@@ -278,7 +279,7 @@ describe('computed', () => {
 
         expect(c.value).toBe(4);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         c.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -312,7 +313,7 @@ describe('computed', () => {
 
         expect(d.value).toBe(2);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         d.observe(observer);
 
         a.value = true;
@@ -355,7 +356,7 @@ describe('Cell', () => {
     test('getAndObserve', () => {
         const a = cell(42);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
 
         a.getAndObserve(observer);
 
@@ -383,7 +384,7 @@ describe('Cell', () => {
 
         expect(b.value).toBe(9);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         b.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -410,7 +411,7 @@ describe('Cell', () => {
 
         expect(b.value).toBe(10);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         b.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -445,7 +446,7 @@ describe('Cell', () => {
 
         expect(d.value).toBe(10);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         d.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -604,7 +605,7 @@ describe('Cell', () => {
     test('cached', () => {
         const a = cell(5);
 
-        const expensive = jest.fn(x => x + 1);
+        const expensive = vi.fn(x => x + 1);
 
         const b = a.map(expensive);
 
@@ -620,7 +621,7 @@ describe('Cell', () => {
         expect(c.value).toBe(6);
         expect(expensive).toHaveBeenCalledTimes(5);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         c.observe(observer);
 
         expect(observer).not.toHaveBeenCalled();
@@ -669,7 +670,7 @@ describe('ZippingCell', () => {
 
         expect(d.value).toStrictEqual([1, 5, 3]);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
 
         d.observe(observer);
 
@@ -730,7 +731,7 @@ describe('BimappingCell', () => {
             y => parseInt(y),
         );
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         b.observe(observer);
 
         a.value = 2;

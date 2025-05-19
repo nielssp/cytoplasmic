@@ -1,6 +1,7 @@
 /** 
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
+import { describe, it, expect, vi } from 'vitest';
 import { Emitter, cell, createEmitter, createInterval, createTimeout } from '../src';
 import { numObservers } from './test-util';
 
@@ -8,7 +9,7 @@ describe('Emitter', () => {
     it('emits events to observers', () => {
         const emitter = createEmitter<number>();
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         emitter.observe(observer);
 
         emitter.emit(5);
@@ -36,7 +37,7 @@ describe('Emitter', () => {
         const emitter = createEmitter<number>();
         const mapped = emitter.map(x => x + 10);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         mapped.observe(observer);
 
         emitter.emit(5);
@@ -59,7 +60,7 @@ describe('Emitter', () => {
         const emitter = createEmitter<number>();
         const filtered = emitter.filter(x => x % 2 === 0);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         filtered.observe(observer);
 
         emitter.emit(5);
@@ -81,7 +82,7 @@ describe('Emitter', () => {
         const emitter = createEmitter<number>();
         const indexed = emitter.indexed();
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         indexed.observe(observer);
 
         emitter.emit(5);
@@ -118,7 +119,7 @@ describe('Emitter', () => {
         const c = cell(5);
         const emitter = Emitter.from(c);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         emitter.observe(observer);
 
         c.value = 5;
@@ -140,64 +141,64 @@ describe('Emitter', () => {
 });
 
 describe('IntervalEmitter', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     it('emits events', () => {
         const interval = createInterval(100);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         interval.observe(observer);
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(2);
 
         interval.unobserve(observer);
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(2);
     });
 
     it('can be started and stopped', () => {
         const interval = createInterval(100, false);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         interval.observe(observer);
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(0);
 
         interval.start();
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(1);
 
         interval.stop();
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(1);
 
         interval.unobserve(observer);
 
         interval.start();
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(1);
     });
 });
 
 describe('TimeoutEmitter', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     it('emits events', () => {
         const timeout = createTimeout(100);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         timeout.observe(observer);
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(1);
 
         timeout.unobserve(observer);
@@ -206,22 +207,22 @@ describe('TimeoutEmitter', () => {
     it('can be reset', () => {
         const timeout = createTimeout(100);
 
-        const observer = jest.fn();
+        const observer = vi.fn();
         timeout.observe(observer);
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(1);
 
         timeout.reset();
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(2);
 
         timeout.reset();
 
         timeout.unobserve(observer);
 
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         expect(observer).toHaveBeenCalledTimes(2);
     });
 });

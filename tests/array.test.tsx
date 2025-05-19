@@ -1,3 +1,4 @@
+import { describe, test, expect, vi } from 'vitest';
 import { Cell, cellArray, cellMap } from '../src';
 
 describe('CellArray', () => {
@@ -13,8 +14,8 @@ describe('CellArray', () => {
     test('observe', () => {
         const a = cellArray([1, 2, 3]);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
         expect(insert).toHaveBeenCalledWith(0, a.items[0]);
         expect(insert).toHaveBeenCalledWith(1, a.items[1]);
@@ -35,8 +36,8 @@ describe('CellArray', () => {
     test('insert', () => {
         const a = cellArray([1, 2, 3]);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
 
         a.insert(0, 5);
@@ -80,8 +81,8 @@ describe('CellArray', () => {
         const b = a.items[0];
         const c = a.items[2];
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
 
         a.replaceAll([4, 5]);
@@ -112,8 +113,8 @@ describe('CellArray', () => {
     test('push', () => {
         const a = cellArray([1, 2, 3]);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
 
         a.push(4);
@@ -133,8 +134,8 @@ describe('CellArray', () => {
     test('pushAll', () => {
         const a = cellArray([1, 2, 3]);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
 
         a.pushAll([4, 5]);
@@ -153,8 +154,8 @@ describe('CellArray', () => {
     test('remove', () => {
         const a = cellArray([1, 2, 3]);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
 
         const b = a.remove(1);
@@ -175,8 +176,8 @@ describe('CellArray', () => {
     test('removeIf', () => {
         const a = cellArray([1, 2, 3]);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
 
         a.removeIf(x => x <= 2);
@@ -191,8 +192,8 @@ describe('CellArray', () => {
     test('clear', () => {
         const a = cellArray([1, 2, 3]);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = a.observe(insert, remove);
 
         a.clear();
@@ -210,8 +211,8 @@ describe('CellStream', () => {
         const a = cellArray([1, 2, 3]);
         const b = a.map(x => x + 10);
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = b.observe((i, c) => insert(i, c.value), remove);
 
         expect(insert).toHaveBeenCalledWith(0, 11);
@@ -244,8 +245,8 @@ describe('CellStream', () => {
 
         const indices: Cell<number>[] = [];
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = b.observe((i, c, k) => {
             indices.splice(i, 0, k);
             insert(i, c.value, k.value);
@@ -286,8 +287,8 @@ describe('CellStream', () => {
 
         const indices: Cell<number>[] = [];
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = b.observe((i, c, k) => {
             indices.splice(i, 0, k);
             insert(i, c.value, k.value);
@@ -329,8 +330,8 @@ describe('CellStream', () => {
         const items: Cell<number>[] = [];
         const indices: Cell<number>[] = [];
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = b.observe((i, c, k) => {
             items.splice(i, 0, c);
             indices.splice(i, 0, k);
@@ -411,8 +412,8 @@ describe('CellMap', () => {
     test('observe', () => {
         const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = map.observe(insert, remove);
         expect(insert).toHaveBeenCalledWith(0, Array.from(map.values)[0], 'foo');
         expect(insert).toHaveBeenCalledWith(1, Array.from(map.values)[1], 'bar');
@@ -440,8 +441,8 @@ describe('CellMap', () => {
     test('set', () => {
         const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = map.observe(insert, remove);
         expect(insert).toHaveBeenCalledTimes(3);
 
@@ -461,8 +462,8 @@ describe('CellMap', () => {
     test('delete', () => {
         const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = map.observe(insert, remove);
         expect(insert).toHaveBeenCalledTimes(3);
 
@@ -487,8 +488,8 @@ describe('CellMap', () => {
     test('clear', () => {
         const map = cellMap(Object.entries({foo: 1, bar: 2, baz: 3}));
 
-        const insert = jest.fn();
-        const remove = jest.fn();
+        const insert = vi.fn();
+        const remove = vi.fn();
         const unobserve = map.observe(insert, remove);
         expect(insert).toHaveBeenCalledTimes(3);
 

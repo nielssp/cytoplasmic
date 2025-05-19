@@ -1,8 +1,8 @@
 /** 
  * @jsx createElement
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
-
+import { describe, it, expect, vi } from 'vitest';
 import { For, cell, cellArray, createElement } from '../src';
 import { mountTest, numObservers } from './test-util';
 

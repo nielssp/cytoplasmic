@@ -1,7 +1,8 @@
 /** 
  * @jsx createElement
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
+import { describe, it, test, expect } from 'vitest';
 import { createRouter, createElement, cell, ActiveRouter, ref, pathToString, Link, Show } from '../src';
 import { mountTest, numObservers } from './test-util';
 
