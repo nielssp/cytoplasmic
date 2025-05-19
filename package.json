@@ -5,7 +5,8 @@
   "author": "Niels Poulsen",
   "license": "MIT",
   "repository": "nielssp/cytoplasmic",
-  "main": "dist/index.js",
+  "type": "module",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",

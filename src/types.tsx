@@ -3,8 +3,8 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { EventAttributes, HTMLAttributes } from "tsx-dom-types";
-import { Cell, MutRefCell } from "./cell";
+import { EventAttributes, HTMLAttributes } from 'tsx-dom-types';
+import { Cell, MutRefCell } from './cell.js';
 
 /**
  * @category Components

@@ -3,7 +3,7 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { MutEmitter, Observable, Observer } from './emitter';
+import { MutEmitter, Observable, Observer } from './emitter.js';
 
 /**
  * A utility type that given a cell type `Cell<TValue>` returns `TValue`.

@@ -3,20 +3,20 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Context } from './context';
-import { IntrinsicElementsHTML } from './types';
+import { Context } from './context.js';
+import { IntrinsicElementsHTML } from './types.js';
 
-export * from './emitter';
-export * from './cell';
-export * from './component';
-export * from './context';
-export * from './array';
-export * from './for';
-export * from './i18n';
-export * from './form';
-export * from './router';
-export * from './util';
-export type { ElementChildren } from './types';
+export * from './emitter.js';
+export * from './cell.js';
+export * from './component.js';
+export * from './context.js';
+export * from './array.js';
+export * from './for.js';
+export * from './i18n.js';
+export * from './form.js';
+export * from './router.js';
+export * from './util.js';
+export type { ElementChildren } from './types.js';
 
 declare global {
     namespace JSX {

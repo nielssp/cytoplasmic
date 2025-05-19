@@ -3,8 +3,8 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Cell, MutCell, cell } from './cell';
-import { Emitter, createEmitter } from './emitter';
+import { Cell, MutCell, cell } from './cell.js';
+import { Emitter, createEmitter } from './emitter.js';
 
 /**
  * Create a mutable array of cells that keeps track of insertions and deletions.

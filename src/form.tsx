@@ -3,9 +3,9 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { cell, MutCell, CellObserver, MutCellImpl } from "./cell";
-import { apply } from "./component";
-import { Context } from "./context";
+import { cell, MutCell, CellObserver, MutCellImpl } from './cell.js';
+import { apply } from './component.js';
+import { Context } from './context.js';
 
 let nextId = 0;
 

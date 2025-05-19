@@ -3,8 +3,8 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { apply } from "./component";
-import { ElementChildren } from './types';
+import { apply } from './component.js';
+import { ElementChildren } from './types.js';
 
 let nextContextId = 1;
 

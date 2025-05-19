@@ -3,7 +3,7 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Cell, Input, input } from "./cell";
+import { Cell, Input, input } from './cell.js';
 
 /**
  * Utility for preventing default event handling.

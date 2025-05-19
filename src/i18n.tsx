@@ -3,8 +3,8 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Cell, constant, zipWith } from "./cell";
-import { Observable } from './emitter';
+import { Cell, constant, zipWith } from './cell.js';
+import { Observable } from './emitter.js';
 
 /**
  * @category I18n

@@ -3,10 +3,10 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { Cell, Input, MutCell, MutRefCell, RefCell, cell, input } from "./cell";
-import { Context } from "./context";
-import { Observable, Observer } from './emitter';
-import { ElementChildren } from "./types";
+import { Cell, Input, MutCell, MutRefCell, RefCell, cell, input } from './cell.js';
+import { Context } from './context.js';
+import { Observable, Observer } from './emitter.js';
+import { ElementChildren } from './types.js';
 
 /**
  * Component properties type.

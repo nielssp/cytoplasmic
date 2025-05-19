@@ -3,11 +3,11 @@
 // Licensed under the MIT license. See the LICENSE file or
 // http://opensource.org/licenses/MIT for more information.
 
-import { CellIterable } from './array';
-import { Cell, MutCell, cell } from './cell';
-import { apply } from './component';
-import { Context } from './context';
-import { ElementChildren } from './types';
+import { CellIterable } from './array.js';
+import { Cell, MutCell, cell } from './cell.js';
+import { apply } from './component.js';
+import { Context } from './context.js';
+import { ElementChildren } from './types.js';
 
 function isIterable(x: unknown): x is Iterable<unknown> {
     return !!x && Symbol.iterator in Object(x);

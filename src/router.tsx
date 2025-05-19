@@ -1,8 +1,13 @@
-import { apply, createElement } from "./component";
-import { Context, createValue } from "./context";
-import { Cell, Input, RefCell, cell, input, ref, zip } from "./cell";
-import { ElementChildren } from './types';
-import { Emitter, createEmitter } from './emitter';
+// CSTK
+// Copyright (c) 2025 Niels Sonnich Poulsen (http://nielssp.dk)
+// Licensed under the MIT license. See the LICENSE file or
+// http://opensource.org/licenses/MIT for more information.
+
+import { apply, createElement } from './component.js';
+import { Context, createValue } from './context.js';
+import { Input, RefCell, cell, input, ref, zip } from './cell.js';
+import { ElementChildren } from './types.js';
+import { Emitter, createEmitter } from './emitter.js';
 
 /**
  * Routing configuration that maps path segments to components.
