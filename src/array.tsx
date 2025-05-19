@@ -218,14 +218,14 @@ class CellStreamWrapper<TItem, TKey> extends CellStream<TItem, TKey> {
  * @category Cell streams and arrays
  */
 export class CellArray<TItem> extends CellStream<TItem, void> {
-    private readonly cells: MutCell<MutCell<TItem>[]> = cell(Array.from(this.initialItems).map(item => cell(item)));
+    private readonly cells: MutCell<MutCell<TItem>[]>;
     private _onInsert = createEmitter<{index: number, item: Cell<TItem>}>();
     private _onRemove = createEmitter<number>();
 
     /**
      * The number of items in the array.
      */
-    readonly length = this.cells.map(cells => cells.length);
+    readonly length: Cell<number>;
 
     /**
      * An emitter that emits events when items are inserted.
@@ -244,6 +244,8 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
         private initialItems: Iterable<TItem>,
     ) {
         super()
+        this.cells = cell(Array.from(this.initialItems).map(item => cell(item)));
+        this.length = this.cells.map(cells => cells.length);
     }
 
     /**
@@ -397,10 +399,10 @@ export class CellArray<TItem> extends CellStream<TItem, void> {
  * @category Cell streams and arrays
  */
 export class CellMap<TKey, TValue> extends CellStream<TValue, TKey> {
-    private readonly cells: MutCell<Map<TKey, MutCell<TValue>>> = cell(new Map(Array.from(this.initialEntries).map(([key, value]) => [key, cell(value)])));
+    private readonly cells: MutCell<Map<TKey, MutCell<TValue>>>;
     private _onInsert = createEmitter<{key: TKey, value: Cell<TValue>}>();
     private _onDelete = createEmitter<TKey>();
-    readonly size = this.cells.map(cells => cells.size);
+    readonly size: Cell<number>;
     readonly onInsert = this._onInsert.asEmitter();
     readonly onDelete = this._onDelete.asEmitter();
 
@@ -408,6 +410,8 @@ export class CellMap<TKey, TValue> extends CellStream<TValue, TKey> {
         private initialEntries: Iterable<[TKey, TValue]> = [],
     ) {
         super();
+        this.cells = cell(new Map(Array.from(this.initialEntries).map(([key, value]) => [key, cell(value)])));
+        this.size = this.cells.map(cells => cells.size);
     }
 
     get keys(): Iterable<TKey> {

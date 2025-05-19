@@ -341,7 +341,7 @@ class MappingCell<TIn, TOut> extends ObserverCell<TOut> {
 }
 
 class CachingCell<T> extends ObserverCell<T> {
-    private cachedValue = this.source.value;
+    private cachedValue: T;
 
     private sourceObserver: CellObserver<T> = value => {
         this.cachedValue = value;
@@ -350,6 +350,7 @@ class CachingCell<T> extends ObserverCell<T> {
 
     constructor(protected source: Cell<T>) {
         super();
+        this.cachedValue = source.value;
     }
 
     get value(): T {

@@ -16,7 +16,7 @@ export * from './i18n';
 export * from './form';
 export * from './router';
 export * from './util';
-export { ElementChildren } from './types';
+export type { ElementChildren } from './types';
 
 declare global {
     namespace JSX {
