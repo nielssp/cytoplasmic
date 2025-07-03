@@ -515,6 +515,7 @@ class ComputingCell<T> extends ObserverCell<T> {
  * @param cell - A cell to track and unwrap.
  * @returns The value of the cell.
  * @experimental
+ * @deprecated Use {@link computed} instead
  * @category Cells
  */
 export function $<T>(cell: Cell<T>): T;
@@ -535,6 +536,7 @@ export function $<T>(cell: Cell<T>): T;
  * compute a resulting value.
  * @returns A cell that computes its value based on the provided computation
  * function.
+ * @deprecated Use {@link computed} instead
  * @category Cells
  */
 export function $<T>(computation: (() => T)): Cell<T>;
@@ -553,14 +555,15 @@ export function $<T>(computation: Cell<T> | (() => T)): T | Cell<T> {
 export type DerefFunction = <T>(cell: Cell<T>) => T;
 
 class ComputingCell2<T> extends ObserverCell<T> {
+    private cachedValue?: [T];
     private sources: Set<Cell<any>> = new Set();
     private sourceObserver = () => {
-        this.emitValue(this.value);
+        this.cachedValue = [this.execute()];
+        this.emitValue(this.cachedValue[0]);
     };
 
     constructor(private computation: (get: DerefFunction) => T) {
         super();
-        this.execute();
     }
 
     private execute(): T {
@@ -581,21 +584,26 @@ class ComputingCell2<T> extends ObserverCell<T> {
     }
 
     get value(): T {
+        if (this.cachedValue) {
+            return this.cachedValue[0];
+        }
         return this.execute();
     }
 
     protected init(): void {
+        this.cachedValue = [this.execute()];
         this.sources.forEach(source => source.observe(this.sourceObserver));
     }
 
     protected destroy(): void {
+        this.cachedValue = undefined;
         this.sources.forEach(source => source.unobserve(this.sourceObserver));
     }
 }
 
 /**
  * Create a computed cell. Do not use `cell.value` inside the computation,
- * always us `get(cell)` to unwrap cells to properly track dependencies.
+ * always us `of(cell)` to unwrap cells to properly track dependencies.
  *
  * This is an alternative implementation of {@link $} that doesn't rely on
  * global state.
@@ -605,17 +613,17 @@ class ComputingCell2<T> extends ObserverCell<T> {
  * ```tsx
  * const a = cell(1);
  * const b = cell(2);
- * const c = computed(get => get(a) + get(b));
+ * const c = computed(of => of(a) + of(b));
  * const d = zipWith([a, b], (a, b) => a + b);
  * ```
  *
- * @param computation - A function that can unwrap cells using `get(cell)` and
+ * @param computation - A function that can unwrap cells using `of(cell)` and
  * compute a resulting value.
  * @returns A cell that computes its value based on the provided computation
  * function.
  * @category Cells
  */
-export function computed<T>(computation: ((get: DerefFunction) => T)): Cell<T> {
+export function computed<T>(computation: ((of: DerefFunction) => T)): Cell<T> {
     return new ComputingCell2(computation);
 }
 

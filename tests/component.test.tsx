@@ -225,11 +225,9 @@ describe('Deref', () => {
 
         r.value = 'test';
         expect(element.container.textContent).toBe('test');
-        const child = element.container.childNodes[0];
 
         r.value = 'test2';
         expect(element.container.textContent).toBe('test2');
-        expect(element.container.childNodes[0]).toBe(child);
 
         r.value = undefined;
         expect(element.container.textContent).toBe('not defined');

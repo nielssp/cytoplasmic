@@ -191,12 +191,38 @@ export function apply(elements: ElementChildren, context: Context): Node[] {
             result.push(...apply(element, context));
         });
     } else if (elements instanceof Cell) {
-        const text = document.createTextNode('' + elements.value);
-        const unobserve = elements.observe((value: string | number | boolean) => {
-            text.textContent = '' + value;
+        let subcontext: Context = new Context(context);
+        const marker = document.createTextNode('');
+        const childNodes: Node[] = [];
+        const subelements = elements.value;
+        apply(subelements, subcontext).forEach(node => {
+            result.push(node);
+            childNodes.push(node);
         });
-        context.onDestroy(() => unobserve());
-        result.push(text);
+        result.push(marker);
+        const observer = (subelements: ElementChildren) => {
+            if (subcontext) {
+                childNodes.splice(0).forEach(node => node.parentElement?.removeChild(node));
+                subcontext.destroy();
+            }
+            if (!marker.parentElement) {
+                return; // shouldn't be possible
+            }
+            const parent = marker.parentElement;
+            subcontext = new Context(context);
+            apply(subelements, subcontext).forEach(node => {
+                parent.insertBefore(node, marker);
+                childNodes.push(node);
+            });
+            subcontext.init();
+        };
+        elements.observe(observer);
+        context.onDestroy(() => {
+            childNodes.forEach(node => node.parentElement?.removeChild(node));
+            childNodes.splice(0);
+            elements.unobserve(observer);
+            subcontext?.destroy();
+        });
     } else if (elements instanceof Node) {
         result.push(elements);
     } else {
