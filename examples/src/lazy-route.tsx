@@ -1,4 +1,4 @@
-import {createElement} from '../src'
+import { createElement } from 'cytoplasmic'
 
 export function LazyRoute() {
     return <h3>Lazy route</h3>;

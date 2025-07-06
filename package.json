@@ -18,8 +18,7 @@
   "scripts": {
     "clean": "rm -rf ./dist",
     "build": "npm run clean && tsc -p ./tsconfig.json",
-    "watch": "webpack watch --mode=production",
-    "dev": "webpack serve --config=webpack.examples.config.js",
+    "watch": "tsc -w -p ./tsconfig.json",
     "prepare": "npm run build",
     "test": "vitest",
     "docs": "typedoc src/index.tsx"
@@ -29,16 +28,8 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.1.4",
-    "css-loader": "^5.2.4",
-    "file-loader": "^6.2.0",
-    "html-webpack-plugin": "^5.3.0",
-    "style-loader": "^2.0.0",
-    "ts-loader": "^9.2.1",
     "typedoc": "^0.28.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.4",
-    "webpack": "^5.37.0",
-    "webpack-cli": "^4.7.0",
-    "webpack-dev-server": "^5.2.2"
+    "vitest": "^3.1.4"
   }
 }

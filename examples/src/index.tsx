@@ -1,7 +1,7 @@
-/** @jsx createElement */
-import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell, $, createInterval } from "../src";
-import { TextControl, Field, IntControl } from "../src/form";
-import { _, _n } from "../src/i18n";
+import { createElement, mount, Show, For, zipWith, ref, ariaBool, Context, createRouter, Link, cellArray, cell, Cell, $, createInterval, TextControl, Field, IntControl, _, _n } from "cytoplasmic";
+import 'classic-stylesheets/layout.css';
+import 'classic-stylesheets/themes/win9x/theme.css';
+import 'classic-stylesheets/themes/win9x/skins/95.css';
 
 const text = new TextControl('');
 const n = cell(0);
