@@ -150,10 +150,11 @@ export function For<TItem, TKey>({each, children, else: elseBranch}: {
         });
     } else if (isIterable(each)) {
         const body = children as (value: unknown, index: number) => JSX.Element;
+        const subcontext = new Context(context);
         context.onInit(() => {
             let i = 0;
             for (const item of each) {
-                apply(body(item, i), context).forEach(node => {
+                apply(body(item, i), subcontext).forEach(node => {
                     if (!marker.parentElement) {
                         return;
                     }
@@ -163,10 +164,14 @@ export function For<TItem, TKey>({each, children, else: elseBranch}: {
             }
             if (!i && elseBranch && marker.parentElement) {
                 const parent = marker.parentElement;
-                apply(elseBranch, context).forEach(node => {
+                apply(elseBranch, subcontext).forEach(node => {
                     parent.insertBefore(node, marker);
                 });
             }
+            subcontext.init();
+        });
+        context.onDestroy(() => {
+            subcontext.destroy();
         });
     } else {
         const body = children as (value: unknown, key: unknown) => JSX.Element;

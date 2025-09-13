@@ -3,7 +3,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { For, cell, cellArray, createElement } from '../src';
+import { For, Show, cell, cellArray, createElement } from '../src';
 import { mountTest, numObservers } from './test-util';
 
 describe('For', () => {
@@ -22,6 +22,24 @@ describe('For', () => {
         element.destroy();
         expect(element.container.textContent).toBe('');
         expect(numObservers(a)).toBe(0);
+
+    });
+    it('initializes nested context', () => {
+        const a = cell('bar');
+        const element = mountTest(
+            <For each={['foo', 'bar', 'baz']}>{item =>
+                <Show when={a.eq(item)}>
+                    {a}
+                </Show>
+            }</For>
+        );
+        expect(element.container.textContent).toBe('bar');
+
+        a.value = 'foo';
+        expect(element.container.textContent).toBe('foo');
+
+        element.destroy();
+        expect(element.container.textContent).toBe('');
     });
     it('traverses static maps', () => {
         const a = cell(10);
